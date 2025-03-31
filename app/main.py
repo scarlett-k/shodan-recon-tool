@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from collections import defaultdict
 
@@ -9,6 +10,15 @@ from app.utils import resolve_domain
 
 app = FastAPI()
 
+# Allow cross-origin requests from React
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # In production, change this to your domain
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class ScanRequest(BaseModel):
     domain: str
 
@@ -17,12 +27,10 @@ async def scan_target(request: ScanRequest):
     try:
         print(f"[DEBUG] Received domain: {request.domain}")
 
-        # Step 1: Get subdomains
         subdomains = get_subdomains_from_crtsh(request.domain)
         if request.domain not in subdomains:
             subdomains.append(request.domain)
 
-        # Step 2: Resolve each subdomain to IPs and build IP -> subdomain map
         ip_to_subdomains = defaultdict(set)
         for sub in subdomains:
             resolved_ips = resolve_domain(sub)
@@ -32,7 +40,6 @@ async def scan_target(request: ScanRequest):
         if not ip_to_subdomains:
             return {"domain": request.domain, "results": [{"error": "No IPs found for domain or subdomains."}]}
 
-        # Step 3: Scan and enrich each unique IP
         results = []
         for ip, subdomain_set in ip_to_subdomains.items():
             print(f"[DEBUG] Scanning {ip} (from: {list(subdomain_set)})")

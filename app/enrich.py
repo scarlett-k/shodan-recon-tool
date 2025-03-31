@@ -37,3 +37,47 @@ def analyze_host(host):
         "last_seen": last_seen,
         "services": services
     }
+def transform_for_card_format(original_output):
+    all_services = original_output.get("services", [])
+
+    formatted_services = []
+
+    for svc in all_services:
+        product = svc.get("product", "Unknown")
+        version = svc.get("version", "Unknown")
+        cves = svc.get("cves", [])
+
+        # Group CVEs by keyword-based categories
+        grouped = {}
+        for cve in cves:
+            desc = (cve.get("description") or "").lower()
+            title = cve.get("id") or "Unknown"
+
+            if "improper" in desc:
+                category = "Improper Encoding"
+            elif "null pointer" in desc:
+                category = "NULL Pointer Dereference"
+            elif "suse" in desc:
+                category = "openSUSE Security Advisory"
+            elif "apache2" in desc:
+                category = "openSUSE: Security Advisory for apache2"
+            else:
+                category = "Other"
+
+            grouped.setdefault(category, []).append({
+                "title": title,
+                "details": cve.get("description", "No description")
+            })
+
+        formatted_services.append({
+            "product": product,
+            "version": version,
+            "grouped_cves": grouped
+        })
+
+    return {
+        "ip": original_output.get("ip"),
+        "subdomains": original_output.get("subdomains", []),
+        "services": formatted_services
+    }
+
