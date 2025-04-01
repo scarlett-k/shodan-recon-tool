@@ -16,16 +16,19 @@ function CVEGroup({ baseTitle, entries }) {
           borderRadius: '5px',
         }}
       >
-        {baseTitle} ({entries.length})
+        {baseTitle} ({entries.length}) ▼
       </div>
       {expanded && (
         <ul style={{ marginLeft: '1rem' }}>
-          {entries.map((cve, i) => (
-            <li key={i} style={{ fontSize: '0.9rem' }}>
-              <strong>{cve._source?.id || cve.id || 'No ID'}:</strong>{" "}
-              {cve._source?.description || cve._source?.flatDescription || 'No description'}
-            </li>
-          ))}
+          {entries.map((cve, i) => {
+            const desc = cve._source?.description || cve._source?.flatDescription || 'No description';
+            const cveId = cve._source?.id || cve.id || cve._id || i;
+            return (
+              <li key={cveId}>
+                <strong>{cveId}:</strong> {desc}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
@@ -33,15 +36,26 @@ function CVEGroup({ baseTitle, entries }) {
 }
 
 function normalizeTitle(title = '') {
-  // Try to remove CVE/Bulletin ID from end of title
-  return title.replace(/\(.*?\)|\b(SUSE|RHSA|CVE)-\d{4}.*$/, '').trim();
+  return title
+    .replace(/\(.*?\)/g, '') // Remove text in parentheses
+    .replace(/\b(SUSE|RHSA|CVE|VERACODE|OPENVAS)[:-]?\d{4}.*$/i, '') // Remove known ID patterns
+    .trim();
 }
 
 function GroupedCVEList({ cves }) {
   const grouped = {};
+  const seenIds = new Set();
 
-  cves.forEach((cve) => {
-    const rawTitle = cve._source?.title || cve.id || 'Untitled';
+  // Deduplicate first
+  const uniqueCVEs = cves.filter((cve) => {
+    const id = cve._source?.id || cve.id || cve._id;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  });
+
+  uniqueCVEs.forEach((cve) => {
+    const rawTitle = cve._source?.title || cve.title || cve.id || 'Untitled';
     const baseTitle = normalizeTitle(rawTitle);
     if (!grouped[baseTitle]) grouped[baseTitle] = [];
     grouped[baseTitle].push(cve);

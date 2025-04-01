@@ -9,23 +9,33 @@ def analyze_host(host):
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
 
-    services = []
+    services_map = {}
+
     for item in host.get("data", []):
         product = item.get("product")
         version = item.get("version")
         port = item.get("port")
 
-        print(f"[DEBUG] Looking up CVEs for {product} {version} on port {port}")
-        cves = search_cves(product, version) if product and version else []
-        print(f"[DEBUG] Found {len(cves)} CVEs")
-        print(f"[DEBUG] CVEs to be added: {cves}")
+        if not product or not version:
+            continue
 
-        services.append({
-            "port": port,
-            "product": product,
-            "version": version,
-            "extra_cves": cves  # <- this must be the list returned by search_cves()
-        })
+        key = f"{product}:{version}"
+
+        # Lookup CVEs
+        cves = search_cves(product, version)
+
+        if key in services_map:
+            services_map[key]["ports"].append(port)
+            services_map[key]["extra_cves"].extend(cves)
+        else:
+            services_map[key] = {
+                "product": product,
+                "version": version,
+                "ports": [port],
+                "extra_cves": cves
+            }
+
+    services = list(services_map.values())
 
     return {
         "ip": ip,
@@ -37,6 +47,7 @@ def analyze_host(host):
         "last_seen": last_seen,
         "services": services
     }
+
 def transform_for_card_format(original_output):
     all_services = original_output.get("services", [])
 
@@ -80,4 +91,3 @@ def transform_for_card_format(original_output):
         "subdomains": original_output.get("subdomains", []),
         "services": formatted_services
     }
-
