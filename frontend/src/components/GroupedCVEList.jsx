@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
+import { PiExclamationMarkFill } from "react-icons/pi";
+import { IoIosWarning } from "react-icons/io";
+import { BsQuestionCircle } from "react-icons/bs";
+import { IoDocumentTextSharp } from "react-icons/io5";
+import { PiFileMagnifyingGlassFill } from "react-icons/pi";
+const iconMap = {
+  "Critical": <PiExclamationMarkFill color="#ad1f1f" />,
+  "High Severity": <IoIosWarning color="#ed931c" />, 
+  "Known Patterns": <PiFileMagnifyingGlassFill color="#4a4b70" />,
+  "Vendor Advisories": <IoDocumentTextSharp color="#595c59" />,
+  "Other": <BsQuestionCircle color="gray" />
+};
 
-function CVEGroup({ baseTitle, entries }) {
+function CVEGroup({ category, entries }) {
   const [expanded, setExpanded] = useState(false);
   const toggle = () => setExpanded(!expanded);
+
+  // Remove any emojis/prefix to match the key in iconMap
+  const categoryKey = category.replace(/^[^\w]*/, '').trim();
 
   return (
     <div style={{ marginBottom: '1rem' }}>
@@ -14,57 +29,52 @@ function CVEGroup({ baseTitle, entries }) {
           background: '#f3f3f3',
           padding: '0.5rem',
           borderRadius: '5px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem'
         }}
       >
-        {baseTitle} ({entries.length}) ▼
+        {iconMap[categoryKey]} {category} ({entries.length}) ▼
       </div>
       {expanded && (
         <ul style={{ marginLeft: '1rem' }}>
-          {entries.map((cve, i) => {
-            const desc = cve._source?.description || cve._source?.flatDescription || 'No description';
-            const cveId = cve._source?.id || cve.id || cve._id || i;
-            return (
-              <li key={cveId}>
-                <strong>{cveId}:</strong> {desc}
-              </li>
-            );
-          })}
+          {entries.map((cve, i) => (
+            <li key={i} style={{ fontSize: '0.9rem' }}>
+              <strong>{cve.id}:</strong> {cve.description}
+            </li>
+          ))}
         </ul>
       )}
     </div>
   );
 }
 
-function normalizeTitle(title = '') {
-  return title
-    .replace(/\(.*?\)/g, '') // Remove text in parentheses
-    .replace(/\b(SUSE|RHSA|CVE|VERACODE|OPENVAS)[:-]?\d{4}.*$/i, '') // Remove known ID patterns
-    .trim();
+function normalizeId(id = '') {
+  return id.replace(/^[A-Z]+:/, '').toUpperCase(); // e.g. OSV:CVE-2024-1234 => CVE-2024-1234
 }
 
-function GroupedCVEList({ cves }) {
-  const grouped = {};
-  const seenIds = new Set();
+function GroupedCVEList({ groupedCves }) {
+  const dedupedGrouped = {};
 
-  // Deduplicate first
-  const uniqueCVEs = cves.filter((cve) => {
-    const id = cve._source?.id || cve.id || cve._id;
-    if (seenIds.has(id)) return false;
-    seenIds.add(id);
-    return true;
-  });
+  for (const [category, cveList] of Object.entries(groupedCves)) {
+    const seen = new Set();
+    const uniqueEntries = [];
 
-  uniqueCVEs.forEach((cve) => {
-    const rawTitle = cve._source?.title || cve.title || cve.id || 'Untitled';
-    const baseTitle = normalizeTitle(rawTitle);
-    if (!grouped[baseTitle]) grouped[baseTitle] = [];
-    grouped[baseTitle].push(cve);
-  });
+    for (const cve of cveList) {
+      const baseId = normalizeId(cve.id);
+      if (!seen.has(baseId)) {
+        seen.add(baseId);
+        uniqueEntries.push({ ...cve, id: baseId });
+      }
+    }
+
+    dedupedGrouped[category] = uniqueEntries;
+  }
 
   return (
     <div>
-      {Object.entries(grouped).map(([baseTitle, entries], idx) => (
-        <CVEGroup key={idx} baseTitle={baseTitle} entries={entries} />
+      {Object.entries(dedupedGrouped).map(([category, entries], idx) => (
+        <CVEGroup key={idx} category={category} entries={entries} />
       ))}
     </div>
   );

@@ -11,9 +11,8 @@ function ScanResults({ results }) {
           <h3>IP: {r.ip}</h3>
           <p><strong>Organization:</strong> {r.org}</p>
           <p><strong>Country:</strong> {r.country}</p>
-          <p><strong>Flagged Ports:</strong> {r.flagged_ports.join(', ') || 'None'}</p>
+          <p><strong>Flagged Ports:</strong> {(Array.isArray(r.flagged_ports) && r.flagged_ports.length > 0) ? r.flagged_ports.join(', ') : 'None'}</p>
           <p><strong>AI CVE Summary:</strong> {r.cve_summary || 'None'}</p>
-
           {r.services.map((service, sIdx) => (
             <ServiceCard key={sIdx} service={service} />
           ))}

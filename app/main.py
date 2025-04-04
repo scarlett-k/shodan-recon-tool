@@ -25,7 +25,7 @@ class ScanRequest(BaseModel):
 @app.post("/scan")
 async def scan_target(request: ScanRequest):
     try:
-        print(f"[DEBUG] Received domain: {request.domain}")
+        # print(f"[DEBUG] Received domain: {request.domain}")
 
         subdomains = get_subdomains_from_crtsh(request.domain)
         if request.domain not in subdomains:
@@ -41,8 +41,14 @@ async def scan_target(request: ScanRequest):
             return {"domain": request.domain, "results": [{"error": "No IPs found for domain or subdomains."}]}
 
         results = []
+        seen_ips = set()  # ✅ Add this to avoid duplicate scans
+
         for ip, subdomain_set in ip_to_subdomains.items():
-            print(f"[DEBUG] Scanning {ip} (from: {list(subdomain_set)})")
+            if ip in seen_ips:
+                continue  # ✅ Skip scanning duplicate IPs
+            seen_ips.add(ip)
+
+            # print(f"[DEBUG] Scanning {ip} (from: {list(subdomain_set)})")
             shodan_data = scan_ip(ip)
             analysis = analyze_host(shodan_data)
             analysis["ip"] = ip

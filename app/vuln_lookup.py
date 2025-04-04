@@ -15,25 +15,35 @@ VULNERS_API_URL = "https://vulners.com/api/v3/burp/software/"
 def search_cves(product: str, version: str):
     if not VULNERS_API_KEY or not product or not version:
         return []
+
     queries = [
+        f"httpd:{version}",
         f"apache:httpd:{version}",
+        f"Apache httpd {version}",
+        f"Apache {version}",
     ]
+
+    seen = set()
+    deduped_results = []
 
     for query in queries:
         print(f"[DEBUG] Trying query: {query}")
 
-        # Send the request to Vulners here, just like you already do
         response = requests.get(
             "https://vulners.com/api/v3/search/lucene/",
             params={"query": query, "apiKey": VULNERS_API_KEY}
         )
-        
+
         data = response.json()
-        print(f"[DEBUG] Vulners raw response: {data}")
+        search_results = data.get("data", {}).get("search", [])
 
-        # If any results are found, break and return them
-        if data.get("data", {}).get("search"):
-            return data["data"]["search"]
+        for cve in search_results:
+            cve_id = cve.get("id") or cve.get("_source", {}).get("id")
+            title = cve.get("title") or cve.get("_source", {}).get("title", "")
+            key = f"{cve_id}:{title}"
 
-    # Fallback: no CVEs found
-    return []
+            if key not in seen:
+                seen.add(key)
+                deduped_results.append(cve)
+
+    return deduped_results

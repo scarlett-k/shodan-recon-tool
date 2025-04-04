@@ -1,6 +1,61 @@
 from app.vuln_lookup import search_cves
 
+def categorize_cves(cves):
+    grouped = {
+        "Critical": [],
+        "High Severity": [],
+        "Known Patterns": [],
+        "Vendor Advisories": [],
+        "Other": []
+    }
+
+    seen_ids = set()
+
+    for cve in cves:
+        cve_id = cve.get("id") or cve.get("_source", {}).get("id", "Unknown")
+        title = cve.get("title") or cve.get("_source", {}).get("title", "")
+        description = (
+            cve.get("description") or
+            cve.get("flatDescription") or
+            cve.get("_source", {}).get("description") or
+            cve.get("_source", {}).get("flatDescription") or
+            ""
+        ).lower()
+        severity = (
+            cve.get("cvss", {}).get("severity") or
+            cve.get("_source", {}).get("cvss", {}).get("severity", "")
+        ).upper()
+
+        key = f"{cve_id}:{title}"
+        if key in seen_ids:
+            continue
+        seen_ids.add(key)
+        print("PRINTING KEY!!!!!!!!!!!!!!!!!!!!!")
+        print(key)
+
+        entry = {
+            "id": cve_id,
+            "title": title,
+            "description": description or "No description"
+        }
+
+        if severity == "CRITICAL":
+            grouped["Critical"].append(entry)
+        elif severity == "HIGH":
+            grouped["High Severity"].append(entry)
+        elif "null pointer" in description or "improper" in description:
+            grouped["Known Patterns"].append(entry)
+        elif any(v in title.lower() for v in ["suse", "rhsa", "openvas"]):
+            grouped["Vendor Advisories"].append(entry)
+        else:
+            grouped["Other"].append(entry)
+
+    return grouped
+
+
 def analyze_host(host):
+    from collections import defaultdict
+
     vulns = host.get("vulns")
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
@@ -9,7 +64,8 @@ def analyze_host(host):
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
 
-    services_map = {}
+    merged_services = {}
+    seen_services = set()
 
     for item in host.get("data", []):
         product = item.get("product")
@@ -19,23 +75,41 @@ def analyze_host(host):
         if not product or not version:
             continue
 
-        key = f"{product}:{version}"
+        key = f"{product}:{version}:{port}"
+        if key in seen_services:
+            continue
+        seen_services.add(key)
 
-        # Lookup CVEs
         cves = search_cves(product, version)
+        grouped_cves = categorize_cves(cves)
 
-        if key in services_map:
-            services_map[key]["ports"].append(port)
-            services_map[key]["extra_cves"].extend(cves)
-        else:
-            services_map[key] = {
-                "product": product,
-                "version": version,
-                "ports": [port],
-                "extra_cves": cves
-            }
+        merge_key = f"{product}::{version}"
+        cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
 
-    services = list(services_map.values())
+        if merge_key in merged_services:
+            if merged_services[merge_key]["cve_signature"] == cve_signature:
+                merged_services[merge_key]["ports"].add(port)
+                continue  # Just add the port to existing service
+            else:
+                # Create a new key if CVEs differ
+                merge_key += f":{port}"
+
+        merged_services[merge_key] = {
+            "product": product,
+            "version": version,
+            "ports": {port},
+            "grouped_cves": grouped_cves,
+            "cve_signature": cve_signature  # Only used for comparison, not returned
+        }
+
+    services = []
+    for entry in merged_services.values():
+        services.append({
+            "product": entry["product"],
+            "version": entry["version"],
+            "ports": sorted(entry["ports"]),
+            "grouped_cves": entry["grouped_cves"]
+        })
 
     return {
         "ip": ip,
@@ -46,48 +120,4 @@ def analyze_host(host):
         "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
         "last_seen": last_seen,
         "services": services
-    }
-
-def transform_for_card_format(original_output):
-    all_services = original_output.get("services", [])
-
-    formatted_services = []
-
-    for svc in all_services:
-        product = svc.get("product", "Unknown")
-        version = svc.get("version", "Unknown")
-        cves = svc.get("cves", [])
-
-        # Group CVEs by keyword-based categories
-        grouped = {}
-        for cve in cves:
-            desc = (cve.get("description") or "").lower()
-            title = cve.get("id") or "Unknown"
-
-            if "improper" in desc:
-                category = "Improper Encoding"
-            elif "null pointer" in desc:
-                category = "NULL Pointer Dereference"
-            elif "suse" in desc:
-                category = "openSUSE Security Advisory"
-            elif "apache2" in desc:
-                category = "openSUSE: Security Advisory for apache2"
-            else:
-                category = "Other"
-
-            grouped.setdefault(category, []).append({
-                "title": title,
-                "details": cve.get("description", "No description")
-            })
-
-        formatted_services.append({
-            "product": product,
-            "version": version,
-            "grouped_cves": grouped
-        })
-
-    return {
-        "ip": original_output.get("ip"),
-        "subdomains": original_output.get("subdomains", []),
-        "services": formatted_services
     }
