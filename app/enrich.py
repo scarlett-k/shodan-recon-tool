@@ -1,5 +1,5 @@
 from app.vuln_lookup import search_cves
-
+import json
 def categorize_cves(cves):
     grouped = {
         "Critical": [],
@@ -30,9 +30,7 @@ def categorize_cves(cves):
         if key in seen_ids:
             continue
         seen_ids.add(key)
-        print("PRINTING KEY!!!!!!!!!!!!!!!!!!!!!")
-        print(key)
-
+    
         entry = {
             "id": cve_id,
             "title": title,
@@ -55,12 +53,18 @@ def categorize_cves(cves):
 
 def analyze_host(host):
     from collections import defaultdict
-
-    vulns = host.get("vulns")
+    vulns = host.get("opts", {}).get("vulns", [])
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
-    country = host.get("location", {}).get("country_name", "Unknown")
+    country = host.get("country_name", "Unknown")
+    city = host.get("city", "Unknown")
+    isp = host.get("isp", "Unknown")
+    asn = host.get("asn", "Unknown")
+    hostnames = host.get("hostnames", [])
+    domains = host.get("domains", [])
+    os = host.get("os", "Unknown")
     ports = host.get("ports", [])
+    tags = host.get("tags", [])
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
 
@@ -112,11 +116,18 @@ def analyze_host(host):
         })
 
     return {
+        # "vulns":vulns,
         "ip": ip,
         "org": org,
+        "hostnames": hostnames,
+        "domains": domains,
+        "isp": isp,
         "country": country,
+        "city":city,
+        "os":os,
         "ports": ports,
         "flagged_ports": flagged_ports,
+        "tags":tags,
         "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
         "last_seen": last_seen,
         "services": services

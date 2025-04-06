@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from collections import defaultdict
-
 from app.shodan_handler import scan_ip
 from app.enrich import analyze_host
 from app.subdomain_enum import get_subdomains_from_crtsh
