@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: shodan-recon-backend
+    runtime: python
+    buildCommand: ""
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SHODAN_API_KEY
+        sync: false
+      - key: VULNERS_API_KEY
+        sync: false

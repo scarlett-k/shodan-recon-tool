@@ -12,11 +12,15 @@ app = FastAPI()
 # Allow cross-origin requests from React
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # In production, change this to your domain
+    allow_origins=[
+        "http://localhost:3000",       # for local React dev
+        "https://shodan-recon-tool.onrender.com",  # just in case something calls itself
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 class ScanRequest(BaseModel):
     domain: str
@@ -59,3 +63,8 @@ async def scan_target(request: ScanRequest):
     except Exception as e:
         print(f"[ERROR] Unexpected error: {e}")
         return {"error": "Internal server error", "details": str(e)}
+
+
+@app.get("/")
+def root():
+    return {"message": "Shodan Recon Tool is live"}
