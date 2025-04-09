@@ -4,19 +4,24 @@ import { IoIosWarning } from "react-icons/io";
 import { BsQuestionCircle } from "react-icons/bs";
 import { IoDocumentTextSharp } from "react-icons/io5";
 import { PiFileMagnifyingGlassFill } from "react-icons/pi";
+
 const iconMap = {
   "Critical": <PiExclamationMarkFill color="#ad1f1f" />,
-  "High Severity": <IoIosWarning color="#ed931c" />, 
+  "High Severity": <IoIosWarning color="#ed931c" />,
   "Known Patterns": <PiFileMagnifyingGlassFill color="#4a4b70" />,
   "Vendor Advisories": <IoDocumentTextSharp color="#595c59" />,
   "Other": <BsQuestionCircle color="gray" />
 };
 
+// Utility to extract CVE-style ID from anything like UBUNTU-CVE-2024-XXXX
+function extractCVEId(id = '') {
+  const match = id.match(/CVE-\d{4}-\d{4,7}/i);
+  return match ? match[0].toUpperCase() : null;
+}
+
 function CVEGroup({ category, entries }) {
   const [expanded, setExpanded] = useState(false);
   const toggle = () => setExpanded(!expanded);
-
-  // Remove any emojis/prefix to match the key in iconMap
   const categoryKey = category.replace(/^[^\w]*/, '').trim();
 
   return (
@@ -38,11 +43,63 @@ function CVEGroup({ category, entries }) {
       </div>
       {expanded && (
         <ul style={{ marginLeft: '1rem' }}>
-          {entries.map((cve, i) => (
-            <li key={i} style={{ fontSize: '0.9rem' }}>
-              <strong>{cve.id}:</strong> {cve.description}
-            </li>
-          ))}
+          {entries.map((cve, i) => {
+            const cveId = extractCVEId(cve.id);
+            const vulnersUrl = `https://vulners.com/search?query=${encodeURIComponent(cve.id)}`;
+            const linkUrl = cveId
+              ? `https://nvd.nist.gov/vuln/detail/${cveId}`
+              : vulnersUrl;
+
+            return (
+              <li key={i} style={{ marginBottom: '1rem', fontSize: '0.9rem', lineHeight: '1.4' }}>
+                <div><strong>ID:</strong> {cve.id}</div>
+
+                {cve.title && (
+                  <div style={{ marginTop: '0.25rem' }}>
+                    <strong>Title:</strong>{' '}
+                    <a
+                      href={linkUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        textDecoration: 'none',
+                        color: 'inherit',
+                        borderBottom: '1px dotted #888',
+                        transition: 'color 0.2s',
+                      }}
+                      onMouseEnter={(e) => (e.target.style.color = '#007acc')}
+                      onMouseLeave={(e) => (e.target.style.color = 'inherit')}
+                    >
+                      {cve.title}
+                    </a>
+                  </div>
+                )}
+
+                {cve.description && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <strong>Description:</strong>{' '}
+                    {`${cve.description.slice(0, 300)}...`}
+                  </div>
+                )}
+
+                {cve.cvss && <div><strong>CVSS:</strong> {cve.cvss}</div>}
+                {typeof cve.exploit !== 'undefined' && (
+                  <div><strong>Exploit Available:</strong> {cve.exploit ? '✅ Yes' : '❌ No'}</div>
+                )}
+                {Array.isArray(cve.references) && cve.references.length > 0 && (
+                  <div><strong>References:</strong>
+                    <ul style={{ marginLeft: '1rem' }}>
+                      {cve.references.map((url, idx) => (
+                        <li key={idx}>
+                          <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

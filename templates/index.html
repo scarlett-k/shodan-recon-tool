@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Recon Tool</title>
+  <link href="/static/style.css" rel="stylesheet" />
+</head>
+<body class="bg-gray-900 text-white p-6">
+  <div class="max-w-3xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4">🔍 Smart Recon Tool</h1>
+
+    <form id="scanForm" class="mb-6">
+      <input type="text" id="domainInput" placeholder="Enter domain (e.g., example.com)" class="p-2 text-black w-full mb-2 rounded">
+      <button type="submit" class="bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">Scan</button>
+    </form>
+
+    <div id="results" class="space-y-4"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('scanForm');
+    const input = document.getElementById('domainInput');
+    const resultsDiv = document.getElementById('results');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const domain = input.value.trim();
+      if (!domain) return;
+
+      resultsDiv.innerHTML = "<p>Scanning... 🔄</p>";
+
+      const response = await fetch("/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain })
+      });
+
+      const data = await response.json();
+      displayResults(data);
+    });
+
+    function displayResults(data) {
+      if (data.error) {
+        resultsDiv.innerHTML = `<p class="text-red-500">${data.details}</p>`;
+        return;
+      }
+
+      const { domain, results } = data;
+      resultsDiv.innerHTML = `<h2 class="text-xl font-semibold mb-2">Results for ${domain}:</h2>`;
+
+      results.forEach(result => {
+        const cveList = result.services.map(s => {
+          const cves = s.extra_cves.map(cve => `<li>${cve.id}: ${cve.description || 'No description'}</li>`).join("");
+          
+          return `<h4 class="font-bold">${s.product} ${s.version}</h4><ul>${cves}</ul>`;
+        }).join("");
+
+        resultsDiv.innerHTML += `
+          <div class="bg-gray-800 p-4 rounded">
+            <p><strong>IP:</strong> ${result.ip}</p>
+            <p><strong>Organization:</strong> ${result.org}</p>
+            <p><strong>Country:</strong> ${result.country}</p>
+            <p><strong>Flagged Ports:</strong> ${result.flagged_ports.join(", ")}</p>
+            <p><strong>AI CVE Summary:</strong> ${result.cve_summary || 'None'}</p>
+            <div class="mt-2">${cveList}</div>
+          </div>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>

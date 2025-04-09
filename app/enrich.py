@@ -1,5 +1,7 @@
 from app.vuln_lookup import search_cves
 import json
+
+
 def categorize_cves(cves):
     grouped = {
         "Critical": [],
@@ -34,8 +36,12 @@ def categorize_cves(cves):
         entry = {
             "id": cve_id,
             "title": title,
-            "description": description or "No description"
+            "description": description or "No description",
+            "cvss": cve.get("cvss", {}).get("score") or cve.get("_source", {}).get("cvss", {}).get("score"),
+            "exploit": "exploitdb" in json.dumps(cve).lower(),
+            "references": cve.get("references") or cve.get("_source", {}).get("references", [])
         }
+
 
         if severity == "CRITICAL":
             grouped["Critical"].append(entry)
