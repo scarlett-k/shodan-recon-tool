@@ -13,8 +13,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",       # for local React dev
-        "https://shodan-recon-tool.onrender.com",  # just in case something calls itself
+        "https://yourusername.github.io/repo-name"
     ],
     allow_credentials=True,
     allow_methods=["*"],
