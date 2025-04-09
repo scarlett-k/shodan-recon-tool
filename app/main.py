@@ -13,7 +13,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://yourusername.github.io/repo-name"
+        "https://scarlett-k.github.io/shodan-recon-tool"
     ],
     allow_credentials=True,
     allow_methods=["*"],
