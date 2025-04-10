@@ -6,7 +6,7 @@ function ScanResults({ results, hasScanned }) {
   if (!results || results.length === 0) return <p style={{ marginTop: '1rem' }}>⚠️ No results to display.</p>;
 
   return (
-    <div style={{ marginTop: '2rem', width: '90%', maxWidth: '800px' }}>
+    <div style={{ margin: '2rem auto', width: '90%', maxWidth: '800px' }}>
       {results.map((r, idx) => (
         <div
           key={idx}
