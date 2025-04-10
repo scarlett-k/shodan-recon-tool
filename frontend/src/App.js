@@ -40,28 +40,25 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center',
     }}>
-      {/* Sticky Header Section */}
+      {/* Header & Search Section */}
       <div style={{
         width: '100%',
         maxWidth: '1000px',
-        position: 'sticky',
-        top: 0,
-        backgroundColor: '#121212',
         padding: '2rem 1rem 1rem',
-        zIndex: 1000,
-        borderBottom: '1px solid #2a2a2a',
+        textAlign: 'center',
       }}>
-        <h1 style={{ textAlign: 'center', fontSize: '2.5rem', marginBottom: '0.5rem' }}>Shodan Recon Tool</h1>
-        <p style={{ textAlign: 'center', fontSize: '0.9rem', color: '#aaa', marginBottom: '1rem' }}>
+        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>Shodan Recon Tool</h1>
+        <p style={{ fontSize: '0.9rem', color: '#aaa', marginBottom: '1rem' }}>
           Enter a domain or IP (e.g. <code>example.com</code> or <code>8.8.8.8</code>).<br />
           <strong>Do not</strong> include <code>https://</code> or a trailing <code>/</code>.
         </p>
+  
         <div style={{
           display: 'flex',
-          flexDirection: 'row',
           justifyContent: 'center',
-          flexWrap: 'wrap',
+          alignItems: 'center',
           gap: '1rem',
+          marginBottom: '1rem',
         }}>
           <input
             type="text"
@@ -74,8 +71,7 @@ function App() {
               border: '1px solid #555',
               backgroundColor: '#1e1e1e',
               color: '#f5f5f5',
-              width: '250px',
-              flex: '1 0 auto'
+              width: '280px',
             }}
           />
           <button
@@ -88,27 +84,26 @@ function App() {
               borderRadius: '6px',
               cursor: 'pointer',
               fontWeight: 'bold',
-              flexShrink: 0
             }}
           >
             Scan
           </button>
         </div>
-        {loading && <p style={{ textAlign: 'center', marginTop: '1rem' }}>🔍 Scanning...</p>}
+  
+        {loading && <p style={{ marginTop: '1rem' }}>🔍 Scanning...</p>}
       </div>
-
-      {/* Scrollable Results Section */}
+  
+      {/* Wider Results Output Section */}
       <div style={{
         width: '100%',
-        maxWidth: '1000px',
+        maxWidth: '1100px',
         padding: '2rem 1rem',
-        overflowY: 'auto',
-        flexGrow: 1,
       }}>
         <ScanResults results={results} hasScanned={hasScanned} />
       </div>
     </div>
   );
+  
 }
 
 export default App;
