@@ -31,13 +31,18 @@ function CVEGroup({ category, entries }) {
         style={{
           cursor: 'pointer',
           fontWeight: 'bold',
-          background: '#f3f3f3',
+          background: '#222',
+          color: '#fff',
           padding: '0.5rem',
           borderRadius: '5px',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.5rem'
+          gap: '0.5rem',
+          border: '1px solid #444',
+          transition: 'background 0.2s',
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = '#333')}
+        onMouseLeave={(e) => (e.currentTarget.style.background = '#222')}
       >
         {iconMap[categoryKey]} {category} ({entries.length}) ▼
       </div>
