@@ -6,6 +6,8 @@ from app.shodan_handler import scan_ip
 from app.enrich import analyze_host
 from app.subdomain_enum import get_subdomains_from_crtsh
 from app.utils import resolve_domain
+import logging
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -13,12 +15,15 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://scarlett-k.github.io/shodan-recon-tool"
+        "https://scarlett-k.github.io"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 class ScanRequest(BaseModel):
@@ -60,7 +65,7 @@ async def scan_target(request: ScanRequest):
         return {"domain": request.domain, "results": results}
 
     except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
         return {"error": "Internal server error", "details": str(e)}
 
 

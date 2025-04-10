@@ -35,8 +35,9 @@ function App() {
         onChange={(e) => setDomain(e.target.value)}
         style={{ padding: '0.5rem', marginRight: '1rem' }}
       />
-      <button onClick={handleScan}>Scan</button>
-
+      <button onClick={handleScan} disabled={loading || !domain}>
+        {loading ? "Scanning..." : "Scan"}
+      </button>
       {loading && <p>Scanning...</p>}
 
       <ScanResults results={results} />
