@@ -10,7 +10,7 @@ function App() {
     setLoading(true);
     setResults(null);
     try {
-      const response = await fetch('http://localhost:8000/scan', {
+      const response = await fetch('https://shodan-recon-tool.onrender.com/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain }),
