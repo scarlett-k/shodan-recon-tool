@@ -32,7 +32,7 @@ function App() {
 
   return (
     <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Smart Recon Tool</h1>
+      <h1>Shodan Recon Tool</h1>
       <input
         type="text"
         placeholder="Enter domain (e.g. example.com)"
