@@ -8,6 +8,13 @@ function App() {
   const [hasScanned, setHasScanned] = useState(false);
 
   const handleScan = async () => {
+    const inputFormat = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
+
+    if (!inputFormat.test(domain.trim())) {
+      setErrorMessage('Please enter a valid domain or IP (e.g., example.com or 8.8.8.8)');
+      return;
+    }
+    setErrorMessage('');
     setLoading(true);
     setResults(null);
     setHasScanned(false);
@@ -89,7 +96,10 @@ function App() {
             Scan
           </button>
         </div>
-  
+        {/* 🔴 Error Message */}
+        {errorMessage && (
+          <p style={{ color: '#ff4c4c', marginTop: '0.25rem' }}>{errorMessage}</p>
+        )}
         {loading && <p style={{ marginTop: '1rem' }}>🔍 Scanning...</p>}
       </div>
   
