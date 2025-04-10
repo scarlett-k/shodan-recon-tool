@@ -9,19 +9,17 @@ function ScanResults({ results, hasScanned }) {
   return (
     <div
       style={{
-        margin: '2rem auto',
-        width: '75%',
-        maxWidth: '1200px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
+        width: '100%',
+        maxWidth: '1100px',         // match the container
+        padding: '2rem 1rem',
+        margin: '0 auto',           // center horizontally
       }}
     >
       {results.map((r, idx) => (
         <div
           key={idx}
           style={{
-            width: '100%', // ✅ Ensure card fills parent container
+            width: '100%',          // fill container
             backgroundColor: '#1f1f1f',
             padding: '1.5rem',
             borderRadius: '10px',
