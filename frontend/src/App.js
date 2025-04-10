@@ -5,10 +5,13 @@ function App() {
   const [domain, setDomain] = useState('');
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [hasScanned, setHasScanned] = useState(false); // NEW
 
   const handleScan = async () => {
     setLoading(true);
     setResults(null);
+    setHasScanned(false); // Reset before scanning
+
     try {
       const response = await fetch('https://shodan-recon-tool.onrender.com/scan', {
         method: 'POST',
@@ -17,11 +20,13 @@ function App() {
       });
 
       const data = await response.json();
-      setResults(data.results); // Only store the inner results array
+      setResults(data.results);
     } catch (err) {
       console.error('Scan failed:', err);
+      setResults([]); // Show "no results" if scan fails gracefully
     } finally {
       setLoading(false);
+      setHasScanned(true); // Mark as scanned after request completes
     }
   };
 
@@ -35,12 +40,11 @@ function App() {
         onChange={(e) => setDomain(e.target.value)}
         style={{ padding: '0.5rem', marginRight: '1rem' }}
       />
-      <button onClick={handleScan} disabled={loading || !domain}>
-        {loading ? "Scanning..." : "Scan"}
-      </button>
+      <button onClick={handleScan}>Scan</button>
+
       {loading && <p>Scanning...</p>}
 
-      <ScanResults results={results} />
+      <ScanResults results={results} hasScanned={hasScanned} />
     </div>
   );
 }
