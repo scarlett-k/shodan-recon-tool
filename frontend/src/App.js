@@ -6,7 +6,7 @@ function App() {
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
-
+  const [errorMessage, setErrorMessage] = useState('');
   const handleScan = async () => {
     const inputFormat = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
 
