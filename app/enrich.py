@@ -60,8 +60,6 @@ def categorize_cves(cves):
 def analyze_host(host):
     from collections import defaultdict
     vulns = host.get("opts", {}).get("vulns", [])
-    print(f"[DEBUG] Trying VULNS: {vulns}")
-
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
     country = host.get("country_name", "Unknown")
@@ -122,7 +120,7 @@ def analyze_host(host):
             "ports": sorted(entry["ports"]),
             "grouped_cves": entry["grouped_cves"]
         })
-
+    print(f"[DEBUG] Trying VULNS: {vulns}")
     return {
         # "vulns":vulns,
         "ip": ip,
