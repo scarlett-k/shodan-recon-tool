@@ -7,6 +7,7 @@ from app.enrich import analyze_host
 from app.subdomain_enum import get_subdomains_from_crtsh
 from app.utils import resolve_domain
 import logging
+import json
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
@@ -57,6 +58,8 @@ async def scan_target(request: ScanRequest):
 
             # print(f"[DEBUG] Scanning {ip} (from: {list(subdomain_set)})")
             shodan_data = scan_ip(ip)
+            print("[DEBUG] Raw Shodan response:")
+            print(json.dumps(shodan_data, indent=2), flush=True) 
             analysis = analyze_host(shodan_data)
             analysis["ip"] = ip
             analysis["subdomains"] = list(subdomain_set)
