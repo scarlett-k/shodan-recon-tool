@@ -43,9 +43,10 @@ function ScanResults({ results, hasScanned }) {
           <p><strong>Flagged Ports:</strong> {r.flagged_ports?.length > 0 ? r.flagged_ports.join(', ') : 'None'}</p>
           <p><strong>Tags:</strong> {r.tags?.length > 0 ? r.tags.join(', ') : 'None'}</p>
           <p><strong>Last seen:</strong> {r.last_seen}</p>
-          {scanData.cves && scanData.cves.length > 0 && (
-            <GlobalCVEs globalCVEs={scanData.cves.map((id) => ({ id }))} />
+          {r.cves && r.cves.length > 0 && (
+            <GlobalCVEs globalCVEs={r.cves.map((id) => ({ id }))} />
           )}
+
           {r.services.map((service, sIdx) => (
             <ServiceCard key={sIdx} service={service} />
           ))}
