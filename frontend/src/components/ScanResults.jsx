@@ -1,25 +1,28 @@
 import React from 'react';
 import ServiceCard from './ServiceCard';
 import GlobalCVEs from './GlobalCVEs';
+
 function ScanResults({ results, hasScanned }) {
   if (!hasScanned) return null;
   if (!results || results.length === 0)
     return <p style={{ marginTop: '1rem' }}>⚠️ No results to display.</p>;
-  console.log("ScanResults services:", scanData.services);
+
+  console.log("ScanResults services:", results); // <-- fixed
+
   return (
     <div
       style={{
         width: '100%',
-        maxWidth: '1100px',         // match the container
+        maxWidth: '1100px',
         padding: '2rem 1rem',
-        margin: '0 auto',           // center horizontally
+        margin: '0 auto',
       }}
     >
       {results.map((r, idx) => (
         <div
           key={idx}
           style={{
-            width: '100%',          // fill container
+            width: '100%',
             backgroundColor: '#1f1f1f',
             padding: '1.5rem',
             borderRadius: '10px',
@@ -43,6 +46,7 @@ function ScanResults({ results, hasScanned }) {
           <p><strong>Flagged Ports:</strong> {r.flagged_ports?.length > 0 ? r.flagged_ports.join(', ') : 'None'}</p>
           <p><strong>Tags:</strong> {r.tags?.length > 0 ? r.tags.join(', ') : 'None'}</p>
           <p><strong>Last seen:</strong> {r.last_seen}</p>
+
           {r.global_cves && r.global_cves.length > 0 && (
             <GlobalCVEs globalCVEs={r.global_cves} />
           )}
