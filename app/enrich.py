@@ -1,6 +1,4 @@
-from app.vuln_lookup import search_cves
 import json
-
 
 def categorize_cves(cves):
     grouped = {
@@ -13,43 +11,30 @@ def categorize_cves(cves):
 
     seen_ids = set()
 
-    for cve in cves:
-        cve_id = cve.get("id") or cve.get("_source", {}).get("id", "Unknown")
-        title = cve.get("title") or cve.get("_source", {}).get("title", "")
-        description = (
-            cve.get("description") or
-            cve.get("flatDescription") or
-            cve.get("_source", {}).get("description") or
-            cve.get("_source", {}).get("flatDescription") or
-            ""
-        ).lower()
-        severity = (
-            cve.get("cvss", {}).get("severity") or
-            cve.get("_source", {}).get("cvss", {}).get("severity", "")
-        ).upper()
-
-        key = f"{cve_id}:{title}"
+    for cve_id, details in cves.items():
+        key = f"{cve_id}:{details.get('summary', '')}"
         if key in seen_ids:
             continue
         seen_ids.add(key)
-    
+
+        description = details.get("summary", "").lower()
+        severity = details.get("cvss", 0)
         entry = {
             "id": cve_id,
-            "title": title,
-            "description": description or "No description",
-            "cvss": cve.get("cvss", {}).get("score") or cve.get("_source", {}).get("cvss", {}).get("score"),
-            "exploit": "exploitdb" in json.dumps(cve).lower(),
-            "references": cve.get("references") or cve.get("_source", {}).get("references", [])
+            "title": details.get("summary", "")[:100],
+            "description": details.get("summary", ""),
+            "cvss": details.get("cvss"),
+            "exploit": any(src in ' '.join(details.get("references", [])) for src in ["exploit", "packetstorm", "metasploit"]),
+            "references": details.get("references", [])
         }
 
-
-        if severity == "CRITICAL":
+        if severity and severity >= 9:
             grouped["Critical"].append(entry)
-        elif severity == "HIGH":
+        elif severity and severity >= 7:
             grouped["High Severity"].append(entry)
         elif "null pointer" in description or "improper" in description:
             grouped["Known Patterns"].append(entry)
-        elif any(v in title.lower() for v in ["suse", "rhsa", "openvas"]):
+        elif any(v in entry["title"].lower() for v in ["suse", "rhsa", "openvas"]):
             grouped["Vendor Advisories"].append(entry)
         else:
             grouped["Other"].append(entry)
@@ -58,14 +43,11 @@ def categorize_cves(cves):
 
 
 def analyze_host(host):
-    from collections import defaultdict
-    vulns = host.get("opts", {}).get("vulns", [])
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
     country = host.get("country_name", "Unknown")
     city = host.get("city", "Unknown")
     isp = host.get("isp", "Unknown")
-    asn = host.get("asn", "Unknown")
     hostnames = host.get("hostnames", [])
     domains = host.get("domains", [])
     os = host.get("os", "Unknown")
@@ -73,68 +55,49 @@ def analyze_host(host):
     tags = host.get("tags", [])
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
+    print("[DEBUG] Raw top-level vulns field from Shodan:", flush=True)
+    print(json.dumps(host.get("vulns", {}), indent=2), flush=True)
 
     merged_services = {}
-    seen_services = set()
+    seen_keys = set()
 
     for item in host.get("data", []):
         product = item.get("product")
-        version = item.get("version")
+        version = item.get("version", "")
         port = item.get("port")
+        cves = item.get("vulns", {})
 
-        if not product or not version:
+        if not product or not cves:
             continue
 
         key = f"{product}:{version}:{port}"
-        if key in seen_services:
+        if key in seen_keys:
             continue
-        seen_services.add(key)
+        seen_keys.add(key)
 
-        cves = search_cves(product, version)
         grouped_cves = categorize_cves(cves)
 
-        merge_key = f"{product}::{version}"
-        cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
-
-        if merge_key in merged_services:
-            if merged_services[merge_key]["cve_signature"] == cve_signature:
-                merged_services[merge_key]["ports"].add(port)
-                continue  # Just add the port to existing service
-            else:
-                # Create a new key if CVEs differ
-                merge_key += f":{port}"
-
-        merged_services[merge_key] = {
+        merged_services[key] = {
             "product": product,
             "version": version,
-            "ports": {port},
-            "grouped_cves": grouped_cves,
-            "cve_signature": cve_signature  # Only used for comparison, not returned
+            "ports": [port],
+            "grouped_cves": grouped_cves
         }
 
-    services = []
-    for entry in merged_services.values():
-        services.append({
-            "product": entry["product"],
-            "version": entry["version"],
-            "ports": sorted(entry["ports"]),
-            "grouped_cves": entry["grouped_cves"]
-        })
-    print(f"[DEBUG] Trying VULNS: {vulns}")
+    services = list(merged_services.values())
+
     return {
-        # "vulns":vulns,
         "ip": ip,
         "org": org,
         "hostnames": hostnames,
         "domains": domains,
         "isp": isp,
         "country": country,
-        "city":city,
-        "os":os,
+        "city": city,
+        "os": os,
         "ports": ports,
         "flagged_ports": flagged_ports,
-        "tags":tags,
-        "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
+        "tags": tags,
         "last_seen": last_seen,
         "services": services
     }
