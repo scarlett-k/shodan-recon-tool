@@ -116,6 +116,11 @@ function normalizeId(id = '') {
 }
 
 function GroupedCVEList({ groupedCves }) {
+  if (!groupedCves || typeof groupedCves !== 'object') {
+    console.warn("⚠️ Invalid or missing groupedCves:", groupedCves);
+    return <div style={{ color: '#ffa726', padding: '1rem' }}>No CVEs to display.</div>;
+  }
+
   const dedupedGrouped = {};
 
   for (const [category, cveList] of Object.entries(groupedCves)) {
@@ -132,6 +137,8 @@ function GroupedCVEList({ groupedCves }) {
 
     dedupedGrouped[category] = uniqueEntries;
   }
+
+  console.log("Grouped CVEs Received:", groupedCves);
 
   return (
     <div>

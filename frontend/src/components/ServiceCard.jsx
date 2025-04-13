@@ -9,6 +9,8 @@ const linkifyCVEs = (text) => {
 };
 
 function ServiceCard({ service }) {
+  console.log("Rendering ServiceCard:", service.product, service.grouped_cves);
+
   return (
     <div style={{
       backgroundColor: '#2a2a2a',

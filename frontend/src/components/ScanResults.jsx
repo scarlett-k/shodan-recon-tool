@@ -5,7 +5,7 @@ function ScanResults({ results, hasScanned }) {
   if (!hasScanned) return null;
   if (!results || results.length === 0)
     return <p style={{ marginTop: '1rem' }}>⚠️ No results to display.</p>;
-
+  console.log("ScanResults services:", scanData.services);
   return (
     <div
       style={{
