@@ -7,3 +7,4 @@ def resolve_domain(domain):
     except Exception as e:
         print(f"Error resolving domain: {e}")
         return []
+    

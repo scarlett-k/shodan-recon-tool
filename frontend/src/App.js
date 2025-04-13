@@ -7,37 +7,38 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
   const handleScan = async () => {
     const inputFormat = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
-  
+
     if (!inputFormat.test(domain.trim())) {
       setErrorMessage('Please enter a valid domain or IP (e.g., example.com or 8.8.8.8)');
       return;
     }
-  
+
     setErrorMessage('');
     setLoading(true);
     setResults(null);
     setHasScanned(false);
-  
+
     try {
       const response = await fetch('https://shodan-recon-tool.onrender.com/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain }),
       });
-  
+
       const data = await response.json();
-      setResults(data.results); 
+      console.log("✅ Fetched from API:", data);  // ✅ Checklist: confirm API response
+      setResults(data.results);                    // ✅ Checklist: setResults call
     } catch (err) {
-      console.error('Scan failed:', err);
+      console.error('❌ Scan failed:', err);
       setResults([]);
     } finally {
       setLoading(false);
       setHasScanned(true);
     }
   };
-  
 
   return (
     <div style={{
@@ -49,7 +50,6 @@ function App() {
       flexDirection: 'column',
       alignItems: 'center',
     }}>
-      {/* Header & Search Section */}
       <div style={{
         width: '100%',
         maxWidth: '1000px',
@@ -61,7 +61,7 @@ function App() {
           Enter a domain or IP (e.g. <code>example.com</code> or <code>8.8.8.8</code>).<br />
           <strong>Do not</strong> include <code>https://</code> or a trailing <code>/</code>.
         </p>
-  
+
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -98,24 +98,23 @@ function App() {
             Scan
           </button>
         </div>
-        {/* 🔴 Error Message */}
+
         {errorMessage && (
           <p style={{ color: '#ff4c4c', marginTop: '0.25rem' }}>{errorMessage}</p>
         )}
         {loading && <p style={{ marginTop: '1rem' }}>🔍 Scanning...</p>}
       </div>
-  
-      {/* Wider Results Output Section */}
+
       <div style={{
         width: '100%',
         maxWidth: '1100px',
         padding: '2rem 1rem',
       }}>
+        {/* ✅ Checklist: confirm ScanResults renders with correct props */}
         <ScanResults results={results} hasScanned={hasScanned} />
       </div>
     </div>
   );
-  
 }
 
 export default App;

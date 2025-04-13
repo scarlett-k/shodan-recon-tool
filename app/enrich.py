@@ -89,8 +89,10 @@ def analyze_host(host):
             continue
         seen_services.add(key)
 
-        cves = search_cves(product, version)
-        grouped_cves = categorize_cves(cves)
+      
+        grouped_cves = {
+            "Other": [{"id": v, "title": "", "description": ""}] for v in host.get("vulns", [])
+        }
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
