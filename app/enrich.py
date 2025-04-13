@@ -1,4 +1,5 @@
 import json
+
 def categorize_cves(cves):
     grouped = {
         "Critical": [],
@@ -55,8 +56,10 @@ def analyze_host(host):
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
 
-    # Safely normalize Shodan top-level vulns field
     raw_vulns = host.get("vulns", [])
+    vuln_details = host.get("vuln", {})
+
+    # Normalize vulns field
     if isinstance(raw_vulns, dict):
         raw_vulns = list(raw_vulns.keys())
     elif not isinstance(raw_vulns, list):
@@ -74,6 +77,10 @@ def analyze_host(host):
         version = item.get("version", "")
         port = item.get("port")
         cves = item.get("vulns", {})
+
+        if not isinstance(cves, dict):
+            print(f"[WARNING] Skipping malformed vulns for {product}:{version}:{port}")
+            continue
 
         if not product or not cves:
             continue
@@ -94,16 +101,17 @@ def analyze_host(host):
 
     services = list(merged_services.values())
 
-    # Create global CVE list from raw top-level vulns
+    # Enrich top-level global CVEs using host["vuln"] data
     global_cves = []
     for cve_id in raw_vulns:
+        details = vuln_details.get(cve_id, {})
         global_cves.append({
             "id": cve_id,
-            "title": cve_id,
-            "description": "No details available (from Shodan only).",
-            "cvss": None,
-            "exploit": False,
-            "references": [],
+            "title": details.get("summary", cve_id)[:100],
+            "description": details.get("summary", "No details available (from Shodan only)."),
+            "cvss": details.get("cvss"),
+            "exploit": any(src in ' '.join(details.get("references", [])) for src in ["exploit", "packetstorm", "metasploit"]),
+            "references": details.get("references", []),
         })
 
     return {
