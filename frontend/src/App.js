@@ -28,7 +28,7 @@ function App() {
       });
   
       const data = await response.json();
-      setResults(data); // ✅ This line was updated
+      setResults(data.results); 
     } catch (err) {
       console.error('Scan failed:', err);
       setResults([]);
