@@ -1,5 +1,4 @@
 import json
-
 def categorize_cves(cves):
     grouped = {
         "Critical": [],
@@ -55,8 +54,17 @@ def analyze_host(host):
     tags = host.get("tags", [])
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
+
+    # Safely normalize Shodan top-level vulns field
+    raw_vulns = host.get("vulns", [])
+    if isinstance(raw_vulns, dict):
+        raw_vulns = list(raw_vulns.keys())
+    elif not isinstance(raw_vulns, list):
+        print(f"[ERROR] Unexpected Shodan vulns format: {type(raw_vulns)} → {raw_vulns}", flush=True)
+        raw_vulns = []
+
     print("[DEBUG] Raw top-level vulns field from Shodan:", flush=True)
-    print(json.dumps(host.get("vulns", {}), indent=2), flush=True)
+    print(json.dumps(raw_vulns, indent=2), flush=True)
 
     merged_services = {}
     seen_keys = set()
@@ -85,10 +93,10 @@ def analyze_host(host):
         }
 
     services = list(merged_services.values())
-    raw_shodan_cves = host.get("vulns", [])
-    global_cves = []
 
-    for cve_id in raw_shodan_cves:
+    # Create global CVE list from raw top-level vulns
+    global_cves = []
+    for cve_id in raw_vulns:
         global_cves.append({
             "id": cve_id,
             "title": cve_id,
@@ -112,5 +120,5 @@ def analyze_host(host):
         "tags": tags,
         "last_seen": last_seen,
         "services": services,
-        "global_cves": global_cves 
+        "global_cves": global_cves
     }
