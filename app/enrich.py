@@ -85,6 +85,18 @@ def analyze_host(host):
         }
 
     services = list(merged_services.values())
+    raw_shodan_cves = host.get("vulns", [])
+    global_cves = []
+
+    for cve_id in raw_shodan_cves:
+        global_cves.append({
+            "id": cve_id,
+            "title": cve_id,
+            "description": "No details available (from Shodan only).",
+            "cvss": None,
+            "exploit": False,
+            "references": [],
+        })
 
     return {
         "ip": ip,
@@ -99,5 +111,6 @@ def analyze_host(host):
         "flagged_ports": flagged_ports,
         "tags": tags,
         "last_seen": last_seen,
-        "services": services
+        "services": services,
+        "global_cves": global_cves 
     }
