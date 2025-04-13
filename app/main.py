@@ -8,8 +8,8 @@ from app.subdomain_enum import get_subdomains_from_crtsh
 from app.utils import resolve_domain
 import logging
 import json
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 app = FastAPI()
 
 # Allow cross-origin requests from React
@@ -22,6 +22,7 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -30,11 +31,10 @@ def health():
 class ScanRequest(BaseModel):
     domain: str
 
+
 @app.post("/scan")
 async def scan_target(request: ScanRequest):
     try:
-        # print(f"[DEBUG] Received domain: {request.domain}")
-
         subdomains = get_subdomains_from_crtsh(request.domain)
         if request.domain not in subdomains:
             subdomains.append(request.domain)
@@ -46,26 +46,27 @@ async def scan_target(request: ScanRequest):
                 ip_to_subdomains[ip].add(sub)
 
         if not ip_to_subdomains:
-            return {"domain": request.domain, "results": [{"error": "No IPs found for domain or subdomains."}]}
+            return []
 
         results = []
-        seen_ips = set()  # ✅ Add this to avoid duplicate scans
+        seen_ips = set()
 
         for ip, subdomain_set in ip_to_subdomains.items():
             if ip in seen_ips:
-                continue  # ✅ Skip scanning duplicate IPs
+                continue
             seen_ips.add(ip)
 
-            # print(f"[DEBUG] Scanning {ip} (from: {list(subdomain_set)})")
             shodan_data = scan_ip(ip)
             print("[DEBUG] Raw Shodan response:")
-            print(json.dumps(shodan_data, indent=2), flush=True) 
+            print(json.dumps(shodan_data, indent=2), flush=True)
+
             analysis = analyze_host(shodan_data)
             analysis["ip"] = ip
             analysis["subdomains"] = list(subdomain_set)
             results.append(analysis)
 
-        return {"domain": request.domain, "results": results}
+        # ✅ Option A: only return the list directly
+        return results
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")

@@ -9,25 +9,26 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const handleScan = async () => {
     const inputFormat = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
-
+  
     if (!inputFormat.test(domain.trim())) {
       setErrorMessage('Please enter a valid domain or IP (e.g., example.com or 8.8.8.8)');
       return;
     }
+  
     setErrorMessage('');
     setLoading(true);
     setResults(null);
     setHasScanned(false);
-
+  
     try {
       const response = await fetch('https://shodan-recon-tool.onrender.com/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain }),
       });
-
+  
       const data = await response.json();
-      setResults(data.results);
+      setResults(data); // ✅ This line was updated
     } catch (err) {
       console.error('Scan failed:', err);
       setResults([]);
@@ -36,6 +37,7 @@ function App() {
       setHasScanned(true);
     }
   };
+  
 
   return (
     <div style={{
