@@ -1,4 +1,3 @@
-from app.vuln_lookup import search_cves
 import json
 
 
