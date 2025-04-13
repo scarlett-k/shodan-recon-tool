@@ -15,8 +15,8 @@ function GlobalCVEs({ globalCVEs }) {
       <h3 style={{ color: '#00adb5', marginBottom: '1rem' }}>
         🔎 Host-level Vulnerabilities (from Shodan)
       </h3>
-      {globalCVEs.map((cve) => (
-        <VulnerabilityCard key={cve.id} vuln={cve} />
+      {globalCVEs.map((cve, i) => (
+        <VulnerabilityCard key={cve.id || i} vuln={cve} />
       ))}
     </div>
   );
