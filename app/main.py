@@ -65,9 +65,9 @@ async def scan_target(request: ScanRequest):
             analysis["ip"] = ip
             analysis["subdomains"] = list(subdomain_set)
             results.append(analysis)
+            
+        return { "results": results }
 
-        # ✅ Option A: only return the list directly
-        return results
 
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
