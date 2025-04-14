@@ -72,7 +72,7 @@ def analyze_host(host):
     tags = host.get("tags", [])
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
-
+    
     merged_services = {}
     seen_services = set()
 
@@ -91,8 +91,9 @@ def analyze_host(host):
 
       
         grouped_cves = {
-            "Other": [{"id": v, "title": "", "description": ""}] for v in host.get("vulns", [])
+            "Other": [{"id": v, "title": "", "description": ""} for v in host.get("vulns", [])]
         }
+
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
@@ -121,6 +122,19 @@ def analyze_host(host):
             "ports": sorted(entry["ports"]),
             "grouped_cves": entry["grouped_cves"]
         })
+
+    # Group the global CVE IDs (no lookup, no details)
+    if isinstance(vulns, dict):
+        vuln_ids = list(vulns.keys())
+    elif isinstance(vulns, list):
+        vuln_ids = vulns
+    else:
+        vuln_ids = []
+
+    # Fake CVE entries for grouping (just minimal info)
+    raw_global_entries = [{"id": v} for v in vuln_ids]
+    grouped_global_cves = categorize_cves(raw_global_entries)
+
     return {
         # "vulns":vulns,
         "ip": ip,
@@ -136,5 +150,6 @@ def analyze_host(host):
         "tags":tags,
         "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
         "last_seen": last_seen,
-        "services": services
+        "services": services,
+        "global_cves": grouped_global_cves,
     }
