@@ -45,4 +45,4 @@ def get_cve_details_from_nvd(cve_id):
         }
     except Exception as e:
         print(f"[NVD] Failed to fetch {cve_id}: {e}")
-        return {}
+        return None
