@@ -1,5 +1,6 @@
 import json
-
+from app.nvd_lookup import get_cve_details_from_nvd
+import time
 
 def categorize_cves(cves):
     grouped = {
@@ -94,7 +95,7 @@ def analyze_host(host):
             "Other": [{"id": v, "title": "", "description": ""} for v in host.get("vulns", [])]
         }
 
-
+        
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
 
@@ -131,9 +132,18 @@ def analyze_host(host):
     else:
         vuln_ids = []
 
-    # Fake CVE entries for grouping (just minimal info)
-    raw_global_entries = [{"id": v} for v in vuln_ids]
+  
+
+    raw_global_entries = []
+    for v in vuln_ids:
+        details = get_cve_details_from_nvd(v)
+        if not details:
+            details = {"id": v, "title": "", "description": "", "cvss": None, "severity": "UNKNOWN"}
+        raw_global_entries.append(details)
+        time.sleep(1)  # avoid rate-limiting without API key
+    
     grouped_global_cves = categorize_cves(raw_global_entries)
+
 
     return {
         # "vulns":vulns,
