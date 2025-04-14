@@ -1,13 +1,11 @@
 import React from 'react';
 import ServiceCard from './ServiceCard';
-import GlobalCVEs from './GlobalCVEs';
+import GroupedCVEList from './GroupedCVEList';
 
 function ScanResults({ results, hasScanned }) {
   if (!hasScanned) return null;
   if (!results || results.length === 0)
     return <p style={{ marginTop: '1rem' }}>⚠️ No results to display.</p>;
-
-  console.log("ScanResults services:", results); // <-- fixed
 
   return (
     <div
@@ -47,8 +45,14 @@ function ScanResults({ results, hasScanned }) {
           <p><strong>Tags:</strong> {r.tags?.length > 0 ? r.tags.join(', ') : 'None'}</p>
           <p><strong>Last seen:</strong> {r.last_seen}</p>
 
-          {r.global_cves && r.global_cves.length > 0 && (
-            <GlobalCVEs globalCVEs={r.global_cves} />
+          {/* ✅ Display categorized global CVEs (NVD enriched) */}
+          {r.global_cves && Object.keys(r.global_cves).length > 0 && (
+            <div style={{ marginTop: '2rem' }}>
+              <h3 style={{ color: '#00adb5', marginBottom: '1rem' }}>
+                🔎 Host-level Vulnerabilities (NVD Enriched)
+              </h3>
+              <GroupedCVEList groupedCves={r.global_cves} />
+            </div>
           )}
 
           {r.services.map((service, sIdx) => (

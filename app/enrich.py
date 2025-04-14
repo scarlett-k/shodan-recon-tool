@@ -59,7 +59,7 @@ def categorize_cves(cves):
 
 def analyze_host(host):
     from collections import defaultdict
-    vulns = host.get("opts", {}).get("vulns", [])
+
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
     country = host.get("country_name", "Unknown")
@@ -73,7 +73,7 @@ def analyze_host(host):
     tags = host.get("tags", [])
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
-    
+
     merged_services = {}
     seen_services = set()
 
@@ -90,21 +90,19 @@ def analyze_host(host):
             continue
         seen_services.add(key)
 
-      
+        # Pull per-service CVEs directly from item-level "vulns"
         grouped_cves = {
-            "Other": [{"id": v, "title": "", "description": ""} for v in host.get("vulns", [])]
+            "Other": [{"id": v, "title": "", "description": ""} for v in item.get("vulns", {}).keys()]
         }
 
-        
         merge_key = f"{product}::{version}"
-        cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
+        cve_signature = tuple(sorted(cve["id"] for group in grouped_cves.values() for cve in group))
 
         if merge_key in merged_services:
             if merged_services[merge_key]["cve_signature"] == cve_signature:
                 merged_services[merge_key]["ports"].add(port)
-                continue  # Just add the port to existing service
+                continue
             else:
-                # Create a new key if CVEs differ
                 merge_key += f":{port}"
 
         merged_services[merge_key] = {
@@ -112,7 +110,7 @@ def analyze_host(host):
             "version": version,
             "ports": {port},
             "grouped_cves": grouped_cves,
-            "cve_signature": cve_signature  # Only used for comparison, not returned
+            "cve_signature": cve_signature
         }
 
     services = []
@@ -124,41 +122,37 @@ def analyze_host(host):
             "grouped_cves": entry["grouped_cves"]
         })
 
-    # Group the global CVE IDs (no lookup, no details)
-    if isinstance(vulns, dict):
-        vuln_ids = list(vulns.keys())
-    elif isinstance(vulns, list):
-        vuln_ids = vulns
-    else:
-        vuln_ids = []
+    # 🔎 Global CVEs: extract unique IDs from ALL port-level "vulns"
+    vuln_ids = set()
+    for item in host.get("data", []):
+        if isinstance(item.get("vulns"), dict):
+            vuln_ids.update(item["vulns"].keys())
+    vuln_ids = list(vuln_ids)
 
-  
-
+    # 🌐 Enrich + group
     raw_global_entries = []
     for v in vuln_ids:
         details = get_cve_details_from_nvd(v)
         if not details:
             details = {"id": v, "title": "", "description": "", "cvss": None, "severity": "UNKNOWN"}
         raw_global_entries.append(details)
-        time.sleep(1)  # avoid rate-limiting without API key
-    
+        time.sleep(1)  # prevent NVD rate-limiting (if no API key)
+
     grouped_global_cves = categorize_cves(raw_global_entries)
 
-
     return {
-        # "vulns":vulns,
         "ip": ip,
         "org": org,
         "hostnames": hostnames,
         "domains": domains,
         "isp": isp,
         "country": country,
-        "city":city,
-        "os":os,
+        "city": city,
+        "os": os,
         "ports": ports,
         "flagged_ports": flagged_ports,
-        "tags":tags,
-        "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
+        "tags": tags,
+        "cves": vuln_ids,
         "last_seen": last_seen,
         "services": services,
         "global_cves": grouped_global_cves,
