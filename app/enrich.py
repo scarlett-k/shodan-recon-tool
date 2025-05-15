@@ -13,11 +13,12 @@ def categorize_cves(cve_ids):
     }
 
     seen_ids = set()
-
-    for cve_id in cve_ids:
+    for cve in cves:
+        cve_id = cve["id"] if isinstance(cve, dict) else cve  # handle both dict or raw string
         if cve_id in seen_ids:
             continue
         seen_ids.add(cve_id)
+
 
         # 🔥 Call your NVD enrichment function
         enriched = enrich_cve(cve_id)
