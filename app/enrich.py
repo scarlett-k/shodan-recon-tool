@@ -1,6 +1,9 @@
 from app.vuln_lookup import search_cves
 import json
 
+import json
+
+import json
 
 def categorize_cves(cves):
     grouped = {
@@ -14,52 +17,28 @@ def categorize_cves(cves):
     seen_ids = set()
 
     for cve in cves:
-        cve_id = cve.get("id") or cve.get("_source", {}).get("id", "Unknown")
-        title = cve.get("title") or cve.get("_source", {}).get("title", "")
-        description = (
-            cve.get("description") or
-            cve.get("flatDescription") or
-            cve.get("_source", {}).get("description") or
-            cve.get("_source", {}).get("flatDescription") or
-            ""
-        ).lower()
-        severity = (
-            cve.get("cvss", {}).get("severity") or
-            cve.get("_source", {}).get("cvss", {}).get("severity", "")
-        ).upper()
+        cve_id = cve.get("id", "Unknown")
 
-        key = f"{cve_id}:{title}"
+        # With only ID, we can't determine severity from Shodan alone
+        entry = {
+            "id": cve_id,
+            "title": "",
+            "description": "No description",
+            "cvss": None,
+            "exploit": False,
+            "references": []
+        }
+
+        key = cve_id
         if key in seen_ids:
             continue
         seen_ids.add(key)
-    
-        entry = {
-            "id": cve_id,
-            "title": title,
-            "description": description or "No description",
-            "cvss": cve.get("cvss", {}).get("score") or cve.get("_source", {}).get("cvss", {}).get("score"),
-            "exploit": "exploitdb" in json.dumps(cve).lower(),
-            "references": cve.get("references") or cve.get("_source", {}).get("references", [])
-        }
 
-
-        if severity == "CRITICAL":
-            grouped["Critical"].append(entry)
-        elif severity == "HIGH":
-            grouped["High Severity"].append(entry)
-        elif "null pointer" in description or "improper" in description:
-            grouped["Known Patterns"].append(entry)
-        elif any(v in title.lower() for v in ["suse", "rhsa", "openvas"]):
-            grouped["Vendor Advisories"].append(entry)
-        else:
-            grouped["Other"].append(entry)
+        grouped["Other"].append(entry)  # Default to Other as Shodan CVEs have no severity info
 
     return grouped
 
-
 def analyze_host(host):
-    from collections import defaultdict
-    vulns = host.get("opts", {}).get("vulns", [])
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
     country = host.get("country_name", "Unknown")
@@ -90,8 +69,15 @@ def analyze_host(host):
             continue
         seen_services.add(key)
 
-        cves = search_cves(product, version)
-        grouped_cves = categorize_cves(cves)
+        raw_cves = item.get("vulns", [])
+        if isinstance(raw_cves, dict):
+            cves = list(raw_cves.keys())
+        elif isinstance(raw_cves, list):
+            cves = raw_cves
+        else:
+            cves = []
+
+        grouped_cves = categorize_cves([{"id": cve_id} for cve_id in cves])
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
@@ -99,9 +85,8 @@ def analyze_host(host):
         if merge_key in merged_services:
             if merged_services[merge_key]["cve_signature"] == cve_signature:
                 merged_services[merge_key]["ports"].add(port)
-                continue  # Just add the port to existing service
+                continue
             else:
-                # Create a new key if CVEs differ
                 merge_key += f":{port}"
 
         merged_services[merge_key] = {
@@ -109,7 +94,7 @@ def analyze_host(host):
             "version": version,
             "ports": {port},
             "grouped_cves": grouped_cves,
-            "cve_signature": cve_signature  # Only used for comparison, not returned
+            "cve_signature": cve_signature
         }
 
     services = []
@@ -122,19 +107,18 @@ def analyze_host(host):
         })
 
     return {
-        # "vulns":vulns,
         "ip": ip,
         "org": org,
         "hostnames": hostnames,
         "domains": domains,
         "isp": isp,
         "country": country,
-        "city":city,
-        "os":os,
+        "city": city,
+        "os": os,
         "ports": ports,
         "flagged_ports": flagged_ports,
-        "tags":tags,
-        "cves": vulns if isinstance(vulns, list) else list(vulns.keys()) if isinstance(vulns, dict) else [],
+        "tags": tags,
+        "cves": host.get("opts", {}).get("vulns", []),
         "last_seen": last_seen,
         "services": services
     }
