@@ -13,7 +13,7 @@ def categorize_cves(cve_ids):
     }
 
     seen_ids = set()
-    for cve in cves:
+    for cve in cve_ids:
         cve_id = cve["id"] if isinstance(cve, dict) else cve  # handle both dict or raw string
         if cve_id in seen_ids:
             continue
