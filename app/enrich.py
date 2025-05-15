@@ -68,7 +68,7 @@ def enrich_cve(cve_id):
     if cve_id in cve_cache:
         return cve_cache[cve_id]
 
-    url = f"https://services.nvd.nist.gov/rest/json/cve/1.0/{cve_id}"
+    url = f"https://services.nvd.nist.gov/rest/json/cve/2.0/{cve_id}"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code != 200:
@@ -76,17 +76,30 @@ def enrich_cve(cve_id):
             return None
 
         data = response.json()
+        cve_list = data.get("vulnerabilities", [])
 
-        cve_item = data.get("result", {}).get("CVE_Items", [])[0]
-        description = cve_item.get("cve", {}).get("description", {}).get("description_data", [{}])[0].get("value", "No description")
+        if not cve_list:
+            print(f"[WARNING] NVD API returned no data for {cve_id}")
+            return None
 
-        impact = cve_item.get("impact", {})
-        if "baseMetricV3" in impact:
-            cvss_score = impact["baseMetricV3"]["cvssV3"]["baseScore"]
-            severity = impact["baseMetricV3"]["cvssV3"]["baseSeverity"]
-        elif "baseMetricV2" in impact:
-            cvss_score = impact["baseMetricV2"]["cvssV2"]["baseScore"]
-            severity = "HIGH" if cvss_score >= 7 else "MEDIUM" if cvss_score >= 4 else "LOW"
+        cve_data = cve_list[0]["cve"]
+
+        # ✅ Description
+        description = next(
+            (desc["value"] for desc in cve_data.get("descriptions", []) if desc.get("lang") == "en"),
+            "No description"
+        )
+
+        # ✅ CVSS metrics
+        metrics = cve_data.get("metrics", {})
+        if "cvssMetricV31" in metrics:
+            cvss_data = metrics["cvssMetricV31"][0]["cvssData"]
+            cvss_score = cvss_data["baseScore"]
+            severity = cvss_data["baseSeverity"]
+        elif "cvssMetricV2" in metrics:
+            cvss_data = metrics["cvssMetricV2"][0]["cvssData"]
+            cvss_score = cvss_data["baseScore"]
+            severity = metrics["cvssMetricV2"][0].get("baseSeverity", "MEDIUM")
         else:
             cvss_score = None
             severity = "UNKNOWN"
@@ -99,12 +112,15 @@ def enrich_cve(cve_id):
         }
 
         cve_cache[cve_id] = enriched
-        time.sleep(0.25)  # Respect NVD rate limits
+        print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
+        time.sleep(0.25)  # Respect rate limit
         return enriched
 
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
+
+
 
 def analyze_host(host):
     ip = host.get("ip_str")
