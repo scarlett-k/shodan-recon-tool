@@ -3,12 +3,69 @@ import requests
 import time
 import json
 
-# Optional simple cache to avoid hammering the API during tests (in-memory)
+def categorize_cves(cve_ids):
+    grouped = {
+        "Critical": [],
+        "High Severity": [],
+        "Known Patterns": [],
+        "Vendor Advisories": [],
+        "Other": []
+    }
+
+    seen_ids = set()
+
+    for cve_id in cve_ids:
+        if cve_id in seen_ids:
+            continue
+        seen_ids.add(cve_id)
+
+        # 🔥 Call your NVD enrichment function
+        enriched = enrich_cve(cve_id)
+        if not enriched:
+            # Fallback if enrichment failed
+            entry = {
+                "id": cve_id,
+                "title": "",
+                "description": "No description",
+                "cvss": None,
+                "exploit": False,
+                "references": []
+            }
+            grouped["Other"].append(entry)
+            continue
+
+        # Build enriched entry
+        entry = {
+            "id": cve_id,
+            "title": "",
+            "description": enriched["description"],
+            "cvss": enriched["cvss"],
+            "exploit": False,
+            "references": []
+        }
+
+        # ✅ Categorize by NVD severity
+        severity = enriched["severity"].upper()
+        if severity == "CRITICAL":
+            grouped["Critical"].append(entry)
+        elif severity == "HIGH":
+            grouped["High Severity"].append(entry)
+        elif "null pointer" in enriched["description"].lower() or "improper" in enriched["description"].lower():
+            grouped["Known Patterns"].append(entry)
+        elif any(v in enriched["description"].lower() for v in ["suse", "rhsa", "openvas"]):
+            grouped["Vendor Advisories"].append(entry)
+        else:
+            grouped["Other"].append(entry)
+
+    return grouped
+
+
+# Optional simple cache
 cve_cache = {}
 
 def enrich_cve(cve_id):
     if cve_id in cve_cache:
-        return cve_cache[cve_id]  # Return from cache if already fetched
+        return cve_cache[cve_id]
 
     url = f"https://services.nvd.nist.gov/rest/json/cve/1.0/{cve_id}"
     try:
@@ -21,8 +78,7 @@ def enrich_cve(cve_id):
 
         cve_item = data.get("result", {}).get("CVE_Items", [])[0]
         description = cve_item.get("cve", {}).get("description", {}).get("description_data", [{}])[0].get("value", "No description")
-        
-        # Prefer CVSS v3 if available, fallback to v2
+
         impact = cve_item.get("impact", {})
         if "baseMetricV3" in impact:
             cvss_score = impact["baseMetricV3"]["cvssV3"]["baseScore"]
@@ -41,11 +97,8 @@ def enrich_cve(cve_id):
             "severity": severity
         }
 
-        cve_cache[cve_id] = enriched  # Save to cache
-
-        # Optional: Sleep to respect NVD rate limit (5 req/sec without key)
-        time.sleep(0.25)
-
+        cve_cache[cve_id] = enriched
+        time.sleep(0.25)  # Respect NVD rate limits
         return enriched
 
     except Exception as e:
