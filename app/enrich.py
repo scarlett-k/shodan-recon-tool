@@ -1,42 +1,56 @@
 from app.vuln_lookup import search_cves
+import requests
+import time
 import json
 
-import json
+# Optional simple cache to avoid hammering the API during tests (in-memory)
+cve_cache = {}
 
-import json
+def enrich_cve(cve_id):
+    if cve_id in cve_cache:
+        return cve_cache[cve_id]  # Return from cache if already fetched
 
-def categorize_cves(cves):
-    grouped = {
-        "Critical": [],
-        "High Severity": [],
-        "Known Patterns": [],
-        "Vendor Advisories": [],
-        "Other": []
-    }
+    url = f"https://services.nvd.nist.gov/rest/json/cve/1.0/{cve_id}"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            print(f"[WARNING] NVD API failed for {cve_id}: {response.status_code}")
+            return None
 
-    seen_ids = set()
+        data = response.json()
 
-    for cve in cves:
-        cve_id = cve.get("id", "Unknown")
+        cve_item = data.get("result", {}).get("CVE_Items", [])[0]
+        description = cve_item.get("cve", {}).get("description", {}).get("description_data", [{}])[0].get("value", "No description")
+        
+        # Prefer CVSS v3 if available, fallback to v2
+        impact = cve_item.get("impact", {})
+        if "baseMetricV3" in impact:
+            cvss_score = impact["baseMetricV3"]["cvssV3"]["baseScore"]
+            severity = impact["baseMetricV3"]["cvssV3"]["baseSeverity"]
+        elif "baseMetricV2" in impact:
+            cvss_score = impact["baseMetricV2"]["cvssV2"]["baseScore"]
+            severity = "HIGH" if cvss_score >= 7 else "MEDIUM" if cvss_score >= 4 else "LOW"
+        else:
+            cvss_score = None
+            severity = "UNKNOWN"
 
-        # With only ID, we can't determine severity from Shodan alone
-        entry = {
+        enriched = {
             "id": cve_id,
-            "title": "",
-            "description": "No description",
-            "cvss": None,
-            "exploit": False,
-            "references": []
+            "description": description,
+            "cvss": cvss_score,
+            "severity": severity
         }
 
-        key = cve_id
-        if key in seen_ids:
-            continue
-        seen_ids.add(key)
+        cve_cache[cve_id] = enriched  # Save to cache
 
-        grouped["Other"].append(entry)  # Default to Other as Shodan CVEs have no severity info
+        # Optional: Sleep to respect NVD rate limit (5 req/sec without key)
+        time.sleep(0.25)
 
-    return grouped
+        return enriched
+
+    except Exception as e:
+        print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
+        return None
 
 def analyze_host(host):
     ip = host.get("ip_str")
