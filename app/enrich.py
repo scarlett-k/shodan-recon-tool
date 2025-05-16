@@ -17,16 +17,13 @@ def categorize_cves(cve_ids):
     }
   
     seen_ids = set()
-    for cve_id in cve_ids:  # no need to check dict form anymore
+    for cve_id in cve_ids:
         if cve_id in seen_ids:
             continue
         seen_ids.add(cve_id)
 
-
-        # 🔥 Call your NVD enrichment function
         enriched = enrich_cve(cve_id)
         if not enriched:
-            # Fallback if enrichment failed
             entry = {
                 "id": cve_id,
                 "title": "",
@@ -38,7 +35,6 @@ def categorize_cves(cve_ids):
             grouped["Other"].append(entry)
             continue
 
-        # Build enriched entry
         entry = {
             "id": cve_id,
             "title": "",
@@ -48,7 +44,6 @@ def categorize_cves(cve_ids):
             "references": []
         }
 
-        # ✅ Categorize by NVD severity
         severity = enriched["severity"].upper()
         if severity == "CRITICAL":
             grouped["Critical"].append(entry)
@@ -63,20 +58,16 @@ def categorize_cves(cve_ids):
 
     return grouped
 
-
 # Optional simple cache
 cve_cache = {}
 
 def enrich_cve(cve_id):
-
     if not NVD_API_KEY:
         print("[ERROR] NVD_API_KEY is not set in the environment variables.")
         return None
 
     url = f"https://services.nvd.nist.gov/rest/json/cve/2.0/{cve_id}"
-    headers = {
-        "apiKey": NVD_API_KEY
-    }
+    headers = { "apiKey": NVD_API_KEY }
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -92,20 +83,17 @@ def enrich_cve(cve_id):
 
         data = response.json()
         cve_list = data.get("vulnerabilities", [])
-
         if not cve_list:
             print(f"[WARNING] NVD API returned no data for {cve_id}")
             return None
 
         cve_data = cve_list[0]["cve"]
 
-        # ✅ Description
         description = next(
             (desc["value"] for desc in cve_data.get("descriptions", []) if desc.get("lang") == "en"),
             "No description"
         )
 
-        # ✅ CVSS metrics
         metrics = cve_data.get("metrics", {})
         if "cvssMetricV31" in metrics:
             cvss_data = metrics["cvssMetricV31"][0]["cvssData"]
@@ -128,13 +116,12 @@ def enrich_cve(cve_id):
 
         cve_cache[cve_id] = enriched
         print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
-        time.sleep(1)  # Respect rate limit
+        time.sleep(1)
         return enriched
 
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
-
 
 
 def analyze_host(host):
@@ -154,7 +141,12 @@ def analyze_host(host):
 
     merged_services = {}
     seen_services = set()
-    print(f"[DEBUG] Top-level host vulns: {host.get('vulns')}")
+
+    # ✅ NEW: Categorize top-level host-level CVEs
+    raw_top_vulns = host.get("vulns", [])
+    grouped_top_level_cves = categorize_cves(raw_top_vulns)
+    print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
+
     for item in host.get("data", []):
         product = item.get("product")
         version = item.get("version")
@@ -182,9 +174,7 @@ def analyze_host(host):
         else:
             cves = []
 
-        # grouped_cves = categorize_cves([{"id": cve_id} for cve_id in cves])
         grouped_cves = categorize_cves(cves)
-
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
@@ -227,5 +217,8 @@ def analyze_host(host):
         "tags": tags,
         "cves": host.get("opts", {}).get("vulns", []),
         "last_seen": last_seen,
-        "services": services
+        "services": services,
+
+        # ✅ INCLUDE this so React can display it
+        "grouped_top_level_cves": grouped_top_level_cves
     }

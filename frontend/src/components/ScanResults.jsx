@@ -1,54 +1,51 @@
 import React from 'react';
+import GroupedCVEList from './GroupedCVEList';
 import ServiceCard from './ServiceCard';
 
-function ScanResults({ results, hasScanned }) {
-  if (!hasScanned) return null;
-  if (!results || results.length === 0)
-    return <p style={{ marginTop: '1rem' }}>⚠️ No results to display.</p>;
+function ScanResults({ result }) {
+  if (!result) return null;
 
   return (
-    <div
-      style={{
-        width: '100%',
-        maxWidth: '1100px',         // match the container
-        padding: '2rem 1rem',
-        margin: '0 auto',           // center horizontally
-      }}
-    >
-      {results.map((r, idx) => (
-        <div
-          key={idx}
-          style={{
-            width: '100%',          // fill container
-            backgroundColor: '#1f1f1f',
-            padding: '1.5rem',
-            borderRadius: '10px',
-            border: '1px solid #333',
-            marginBottom: '2rem',
-            boxShadow: '0 0 10px rgba(0,0,0,0.2)',
-          }}
-        >
-          <h2 style={{ marginBottom: '0.5rem' }}>IP: {r.ip}</h2>
-          <p><strong>Organization:</strong> {r.org}</p>
-          {r.isp && r.isp !== r.org && <p><strong>ISP:</strong> {r.isp}</p>}
-          {r.domains?.length > 0 && <p><strong>Domains:</strong> {r.domains.join(', ')}</p>}
-          {r.hostnames?.length > 0 &&
-            r.hostnames.some((h) => !r.domains.includes(h)) && (
-              <p><strong>Hostnames:</strong> {r.hostnames.join(', ')}</p>
-            )}
-          <p><strong>OS:</strong> {r.os || 'Unknown'}</p>
-          <p><strong>Country:</strong> {r.country || 'Unknown'}</p>
-          <p><strong>City:</strong> {r.city || 'Unknown'}</p>
-          <p><strong>Ports:</strong> {r.ports?.length > 0 ? r.ports.join(', ') : 'None'}</p>
-          <p><strong>Flagged Ports:</strong> {r.flagged_ports?.length > 0 ? r.flagged_ports.join(', ') : 'None'}</p>
-          <p><strong>Tags:</strong> {r.tags?.length > 0 ? r.tags.join(', ') : 'None'}</p>
-          <p><strong>Last seen:</strong> {r.last_seen}</p>
+    <div style={{ padding: '1rem' }}>
+      <div style={{ background: '#111', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>IP: {result.ip}</h2>
+        <p><strong>Organization:</strong> {result.org}</p>
+        <p><strong>ISP:</strong> {result.isp}</p>
+        <p><strong>Domains:</strong> {result.domains.join(', ') || 'None'}</p>
+        <p><strong>Hostnames:</strong> {result.hostnames.join(', ') || 'None'}</p>
+        <p><strong>OS:</strong> {result.os || 'Unknown'}</p>
+        <p><strong>Country:</strong> {result.country}</p>
+        <p><strong>City:</strong> {result.city}</p>
+        <p><strong>Ports:</strong> {result.ports.join(', ') || 'None'}</p>
+        <p><strong>Flagged Ports:</strong> {result.flagged_ports.join(', ') || 'None'}</p>
+        <p><strong>Tags:</strong> {result.tags.join(', ') || 'None'}</p>
+        <p><strong>Last seen:</strong> {result.last_seen}</p>
+      </div>
 
-          {r.services.map((service, sIdx) => (
-            <ServiceCard key={sIdx} service={service} />
+      {/* ✅ TOP-LEVEL CVE SECTION */}
+      {result.grouped_top_level_cves && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#00bcd4' }}>
+            Top-level Vulnerabilities
+          </h3>
+          {Object.keys(result.grouped_top_level_cves).some(key => result.grouped_top_level_cves[key].length > 0) ? (
+            <GroupedCVEList groupedCves={result.grouped_top_level_cves} />
+          ) : (
+            <p style={{ color: '#999', fontStyle: 'italic' }}>No categorized top-level CVEs found.</p>
+          )}
+        </div>
+      )}
+
+      {result.services && result.services.length > 0 && (
+        <div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+            Service Vulnerabilities
+          </h3>
+          {result.services.map((service, index) => (
+            <ServiceCard key={index} service={service} />
           ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
