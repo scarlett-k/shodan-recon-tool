@@ -155,7 +155,6 @@ def analyze_host(host):
     merged_services = {}
     seen_services = set()
     print(f"[DEBUG] Top-level host vulns: {host.get('vulns')}")
-    print(f"[DEBUG] host['data'][i]['vulns']: {item.get('vulns')}")
     for item in host.get("data", []):
         product = item.get("product")
         version = item.get("version")
