@@ -169,8 +169,11 @@ def analyze_host(host):
         seen_services.add(key)
 
         raw_cves = item.get("vulns")
+        print(f"[DEBUG] item vulns for {item.get('ip_str')}: {raw_cves}")
+
         if not raw_cves:
             raw_cves = host.get("opts", {}).get("vulns", [])
+            print(f"[DEBUG] fallback host opts vulns for {host.get('ip_str')}: {raw_cves}")
 
         if isinstance(raw_cves, dict):
             cves = list(raw_cves.keys())
