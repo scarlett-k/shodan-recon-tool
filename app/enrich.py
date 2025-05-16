@@ -2,6 +2,10 @@ from app.vuln_lookup import search_cves
 import requests
 import time
 import json
+import os
+
+# Pull API key safely from env vars (default to empty string if not set)
+NVD_API_KEY = os.getenv("NVD_API_KEY", "")
 
 def categorize_cves(cve_ids):
     grouped = {
@@ -13,8 +17,7 @@ def categorize_cves(cve_ids):
     }
 
     seen_ids = set()
-    for cve in cve_ids:
-        cve_id = cve["id"] if isinstance(cve, dict) else cve  # handle both dict or raw string
+    for cve_id in cve_ids:  # no need to check dict form anymore
         if cve_id in seen_ids:
             continue
         seen_ids.add(cve_id)
@@ -65,13 +68,25 @@ def categorize_cves(cve_ids):
 cve_cache = {}
 
 def enrich_cve(cve_id):
-    if cve_id in cve_cache:
-        return cve_cache[cve_id]
+
+    if not NVD_API_KEY:
+        print("[ERROR] NVD_API_KEY is not set in the environment variables.")
+        return None
 
     url = f"https://services.nvd.nist.gov/rest/json/cve/2.0/{cve_id}"
+    headers = {
+        "apiKey": NVD_API_KEY
+    }
+
     try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 404:
+            print(f"[WARNING] NVD API 404 for {cve_id}: Not found")
+            return None
+        elif response.status_code == 403:
+            print(f"[ERROR] NVD API 403 for {cve_id}: Forbidden (check API key or rate limits)")
+            return None
+        elif response.status_code != 200:
             print(f"[WARNING] NVD API failed for {cve_id}: {response.status_code}")
             return None
 
@@ -161,7 +176,9 @@ def analyze_host(host):
         else:
             cves = []
 
-        grouped_cves = categorize_cves([{"id": cve_id} for cve_id in cves])
+        # grouped_cves = categorize_cves([{"id": cve_id} for cve_id in cves])
+        grouped_cves = categorize_cves(cves)
+
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
