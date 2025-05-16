@@ -50,10 +50,10 @@ function CVEGroup({ category, entries }) {
         <ul style={{ marginLeft: '1rem' }}>
           {entries.map((cve, i) => {
             const cveId = extractCVEId(cve.id);
-            const vulnersUrl = `https://vulners.com/search?query=${encodeURIComponent(cve.id)}`;
             const linkUrl = cveId
-              ? `https://nvd.nist.gov/vuln/detail/${cveId}`
-              : vulnersUrl;
+            ? `https://nvd.nist.gov/vuln/detail/${cveId}`
+            : `https://nvd.nist.gov/vuln/search/results?query=${encodeURIComponent(cve.id)}`;
+
 
             return (
               <li key={i} style={{ marginBottom: '1rem', fontSize: '0.9rem', lineHeight: '1.4' }}>
