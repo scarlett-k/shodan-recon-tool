@@ -128,7 +128,7 @@ def enrich_cve(cve_id):
 
         cve_cache[cve_id] = enriched
         print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
-        time.sleep(0.25)  # Respect rate limit
+        time.sleep(1)  # Respect rate limit
         return enriched
 
     except Exception as e:
@@ -168,7 +168,10 @@ def analyze_host(host):
             continue
         seen_services.add(key)
 
-        raw_cves = item.get("vulns", [])
+        raw_cves = item.get("vulns")
+        if not raw_cves:
+            raw_cves = host.get("opts", {}).get("vulns", [])
+
         if isinstance(raw_cves, dict):
             cves = list(raw_cves.keys())
         elif isinstance(raw_cves, list):
