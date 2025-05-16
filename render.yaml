@@ -7,5 +7,5 @@ services:
     envVars:
       - key: SHODAN_API_KEY
         sync: false
-      - key: VULNERS_API_KEY
+      - key: NVD_API_KEY
         sync: false
