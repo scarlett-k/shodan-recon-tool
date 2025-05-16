@@ -15,7 +15,7 @@ def categorize_cves(cve_ids):
         "Vendor Advisories": [],
         "Other": []
     }
-
+  
     seen_ids = set()
     for cve_id in cve_ids:  # no need to check dict form anymore
         if cve_id in seen_ids:
@@ -154,7 +154,8 @@ def analyze_host(host):
 
     merged_services = {}
     seen_services = set()
-
+    print(f"[DEBUG] Top-level host vulns: {host.get('vulns')}")
+    print(f"[DEBUG] host['data'][i]['vulns']: {item.get('vulns')}")
     for item in host.get("data", []):
         product = item.get("product")
         version = item.get("version")
