@@ -13,7 +13,6 @@ const iconMap = {
   "Other": <BsQuestionCircle color="gray" />
 };
 
-// Utility to extract CVE-style ID from anything like UBUNTU-CVE-2024-XXXX
 function extractCVEId(id = '') {
   const match = id.match(/CVE-\d{4}-\d{4,7}/i);
   return match ? match[0].toUpperCase() : null;
@@ -51,9 +50,8 @@ function CVEGroup({ category, entries }) {
           {entries.map((cve, i) => {
             const cveId = extractCVEId(cve.id);
             const linkUrl = cveId
-            ? `https://nvd.nist.gov/vuln/detail/${cveId}`
-            : `https://nvd.nist.gov/vuln/search/results?query=${encodeURIComponent(cve.id)}`;
-
+              ? `https://nvd.nist.gov/vuln/detail/${cveId}`
+              : `https://nvd.nist.gov/vuln/search/results?query=${encodeURIComponent(cve.id)}`;
 
             return (
               <li key={i} style={{ marginBottom: '1rem', fontSize: '0.9rem', lineHeight: '1.4' }}>
@@ -112,15 +110,23 @@ function CVEGroup({ category, entries }) {
 }
 
 function normalizeId(id = '') {
-  return id.replace(/^[A-Z]+:/, '').toUpperCase(); // e.g. OSV:CVE-2024-1234 => CVE-2024-1234
+  return id.replace(/^[A-Z]+:/, '').toUpperCase();
 }
 
 function GroupedCVEList({ groupedCves }) {
+  console.log("[DEBUG] Grouped CVEs received:", groupedCves);
+
+  if (!groupedCves || typeof groupedCves !== 'object') {
+    return <p style={{ color: '#999' }}>No CVEs found for this service.</p>;
+  }
+
   const dedupedGrouped = {};
 
   for (const [category, cveList] of Object.entries(groupedCves)) {
     const seen = new Set();
     const uniqueEntries = [];
+
+    if (!Array.isArray(cveList)) continue;
 
     for (const cve of cveList) {
       const baseId = normalizeId(cve.id);
@@ -133,10 +139,17 @@ function GroupedCVEList({ groupedCves }) {
     dedupedGrouped[category] = uniqueEntries;
   }
 
+  const hasAnyCVEs = Object.values(dedupedGrouped).some(list => list.length > 0);
+  if (!hasAnyCVEs) {
+    return <p style={{ color: '#999' }}>No CVEs found for this service.</p>;
+  }
+
   return (
     <div>
       {Object.entries(dedupedGrouped).map(([category, entries], idx) => (
-        <CVEGroup key={idx} category={category} entries={entries} />
+        entries.length > 0 && (
+          <CVEGroup key={idx} category={category} entries={entries} />
+        )
       ))}
     </div>
   );

@@ -1,43 +1,25 @@
 import React from 'react';
 import GroupedCVEList from './GroupedCVEList';
 
-const linkifyCVEs = (text) => {
-  if (!text) return '';
-  return text.replace(/CVE-\d{4}-\d{4,7}/gi, (match) => {
-    return `<a href="https://cve.mitre.org/cgi-bin/cvename.cgi?name=${match}" target="_blank" rel="noopener noreferrer" style="color:#00adb5;">${match}</a>`;
-  });
-};
-
-function ServiceCard({ service }) {
+function ServiceCard({ product, version, ports, groupedCves }) {
   return (
-    <div style={{
-      backgroundColor: '#2a2a2a',
-      border: '1px solid #444',
-      padding: '1rem',
-      marginTop: '1rem',
-      borderRadius: '8px',
-    }}>
-      <h3 style={{ marginBottom: '0.5rem', color: '#00adb5' }}>
-        {service.product} {service.version}
-        {service.ports && service.ports.length > 0 && (
-          <> (Ports: {service.ports.join(', ')})</>
-        )}
+    <div
+      style={{
+        border: '1px solid #ccc',
+        borderRadius: '8px',
+        padding: '1rem',
+        marginBottom: '1.5rem',
+        backgroundColor: '#f9f9f9'
+      }}
+    >
+      <h3 style={{ marginBottom: '0.25rem' }}>
+        {product} {version && `v${version}`}
       </h3>
+      <p style={{ fontSize: '0.9rem', color: '#666' }}>
+        Ports: {ports.join(', ')}
+      </p>
 
-      {service.description && (
-        <p
-          dangerouslySetInnerHTML={{
-            __html: linkifyCVEs(service.description),
-          }}
-          style={{ lineHeight: '1.5', color: '#ccc' }}
-        />
-      )}
-
-      {service.grouped_cves ? (
-        <GroupedCVEList groupedCves={service.grouped_cves} />
-      ) : (
-        <p style={{ color: '#888' }}>No known CVEs for this service.</p>
-      )}
+      <GroupedCVEList groupedCves={groupedCves || {}} />
     </div>
   );
 }
