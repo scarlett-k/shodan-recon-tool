@@ -7,57 +7,6 @@ import os
 # Pull API key safely from env vars (default to empty string if not set)
 NVD_API_KEY = os.getenv("NVD_API_KEY", "")
 
-def categorize_cves(cve_ids):
-    grouped = {
-        "Critical": [],
-        "High Severity": [],
-        "Known Patterns": [],
-        "Vendor Advisories": [],
-        "Other": []
-    }
-  
-    seen_ids = set()
-    for cve_id in cve_ids:
-        if cve_id in seen_ids:
-            continue
-        seen_ids.add(cve_id)
-
-        enriched = enrich_cve(cve_id)
-        if not enriched:
-            entry = {
-                "id": cve_id,
-                "title": "",
-                "description": "No description",
-                "cvss": None,
-                "exploit": False,
-                "references": []
-            }
-            grouped["Other"].append(entry)
-            continue
-
-        entry = {
-            "id": cve_id,
-            "title": "",
-            "description": enriched["description"],
-            "cvss": enriched["cvss"],
-            "exploit": False,
-            "references": []
-        }
-
-        severity = enriched["severity"].upper()
-        if severity == "CRITICAL":
-            grouped["Critical"].append(entry)
-        elif severity == "HIGH":
-            grouped["High Severity"].append(entry)
-        elif "null pointer" in enriched["description"].lower() or "improper" in enriched["description"].lower():
-            grouped["Known Patterns"].append(entry)
-        elif any(v in enriched["description"].lower() for v in ["suse", "rhsa", "openvas"]):
-            grouped["Vendor Advisories"].append(entry)
-        else:
-            grouped["Other"].append(entry)
-
-    return grouped
-
 # Optional simple cache
 cve_cache = {}
 
@@ -122,6 +71,58 @@ def enrich_cve(cve_id):
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
+    
+def categorize_cves(cve_ids):
+    grouped = {
+        "Critical": [],
+        "High Severity": [],
+        "Known Patterns": [],
+        "Vendor Advisories": [],
+        "Other": []
+    }
+  
+    seen_ids = set()
+    for cve_id in cve_ids:
+        if cve_id in seen_ids:
+            continue
+        seen_ids.add(cve_id)
+
+        enriched = enrich_cve(cve_id)
+        if not enriched:
+            entry = {
+                "id": cve_id,
+                "title": "",
+                "description": "No description",
+                "cvss": None,
+                "exploit": False,
+                "references": []
+            }
+            grouped["Other"].append(entry)
+            continue
+
+        entry = {
+            "id": cve_id,
+            "title": "",
+            "description": enriched["description"],
+            "cvss": enriched["cvss"],
+            "exploit": False,
+            "references": []
+        }
+
+        severity = enriched["severity"].upper()
+        if severity == "CRITICAL":
+            grouped["Critical"].append(entry)
+        elif severity == "HIGH":
+            grouped["High Severity"].append(entry)
+        elif "null pointer" in enriched["description"].lower() or "improper" in enriched["description"].lower():
+            grouped["Known Patterns"].append(entry)
+        elif any(v in enriched["description"].lower() for v in ["suse", "rhsa", "openvas"]):
+            grouped["Vendor Advisories"].append(entry)
+        else:
+            grouped["Other"].append(entry)
+
+    return grouped
+
 
 
 def analyze_host(host):
@@ -146,6 +147,7 @@ def analyze_host(host):
     raw_top_vulns = host.get("vulns", [])
     grouped_top_level_cves = categorize_cves(raw_top_vulns)
     print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
+    
 
     for item in host.get("data", []):
         product = item.get("product")
@@ -215,7 +217,8 @@ def analyze_host(host):
         "ports": ports,
         "flagged_ports": flagged_ports,
         "tags": tags,
-        "cves": host.get("opts", {}).get("vulns", []),
+        "cves": grouped_top_level_cves,  # overwrite the flat list
+        "grouped_top_level_cves": grouped_top_level_cves,  # or keep both
         "last_seen": last_seen,
         "services": services,
 
