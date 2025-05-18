@@ -1,60 +1,36 @@
-from app.vuln_lookup import search_cves
 import requests
 import time
-import json
-import os
-
-# Pull API key safely from env vars (default to empty string if not set)
-NVD_API_KEY = os.getenv("NVD_API_KEY", "")
 
 # Optional simple cache
 cve_cache = {}
 
 def enrich_cve(cve_id):
-    if not NVD_API_KEY:
-        print("[ERROR] NVD_API_KEY is not set in the environment variables.")
-        return None
+    if cve_id in cve_cache:
+        return cve_cache[cve_id]
 
-    url = f"https://services.nvd.nist.gov/rest/json/cve/2.0/{cve_id}"
-    headers = { "apiKey": NVD_API_KEY }
+    url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, timeout=10)
         if response.status_code == 404:
-            print(f"[WARNING] NVD API 404 for {cve_id}: Not found")
-            return None
-        elif response.status_code == 403:
-            print(f"[ERROR] NVD API 403 for {cve_id}: Forbidden (check API key or rate limits)")
+            print(f"[WARNING] MITRE API 404 for {cve_id}: Not found")
             return None
         elif response.status_code != 200:
-            print(f"[WARNING] NVD API failed for {cve_id}: {response.status_code}")
+            print(f"[WARNING] MITRE API failed for {cve_id}: {response.status_code}")
             return None
 
         data = response.json()
-        cve_list = data.get("vulnerabilities", [])
-        if not cve_list:
-            print(f"[WARNING] NVD API returned no data for {cve_id}")
-            return None
+        cve_data = data.get("containers", {}).get("cna", {})
 
-        cve_data = cve_list[0]["cve"]
+        description = "No description"
+        for desc in cve_data.get("descriptions", []):
+            if desc.get("lang") == "en":
+                description = desc.get("value", description)
+                break
 
-        description = next(
-            (desc["value"] for desc in cve_data.get("descriptions", []) if desc.get("lang") == "en"),
-            "No description"
-        )
-
-        metrics = cve_data.get("metrics", {})
-        if "cvssMetricV31" in metrics:
-            cvss_data = metrics["cvssMetricV31"][0]["cvssData"]
-            cvss_score = cvss_data["baseScore"]
-            severity = cvss_data["baseSeverity"]
-        elif "cvssMetricV2" in metrics:
-            cvss_data = metrics["cvssMetricV2"][0]["cvssData"]
-            cvss_score = cvss_data["baseScore"]
-            severity = metrics["cvssMetricV2"][0].get("baseSeverity", "MEDIUM")
-        else:
-            cvss_score = None
-            severity = "UNKNOWN"
+        # MITRE doesn't provide CVSS score in CNA container
+        cvss_score = None
+        severity = "UNKNOWN"
 
         enriched = {
             "id": cve_id,
@@ -71,7 +47,8 @@ def enrich_cve(cve_id):
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
-    
+
+
 def categorize_cves(cve_ids):
     grouped = {
         "Critical": [],
@@ -80,7 +57,7 @@ def categorize_cves(cve_ids):
         "Vendor Advisories": [],
         "Other": []
     }
-  
+
     seen_ids = set()
     for cve_id in cve_ids:
         if cve_id in seen_ids:
@@ -124,7 +101,6 @@ def categorize_cves(cve_ids):
     return grouped
 
 
-
 def analyze_host(host):
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
@@ -143,11 +119,10 @@ def analyze_host(host):
     merged_services = {}
     seen_services = set()
 
-    # ✅ NEW: Categorize top-level host-level CVEs
+    # ✅ Categorize top-level host-level CVEs
     raw_top_vulns = host.get("vulns", [])
     grouped_top_level_cves = categorize_cves(raw_top_vulns)
     print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
-    
 
     for item in host.get("data", []):
         product = item.get("product")
@@ -217,11 +192,8 @@ def analyze_host(host):
         "ports": ports,
         "flagged_ports": flagged_ports,
         "tags": tags,
-        "cves": grouped_top_level_cves,  # overwrite the flat list
-        "grouped_top_level_cves": grouped_top_level_cves,  # or keep both
+        "cves": grouped_top_level_cves,
+        "grouped_top_level_cves": grouped_top_level_cves,
         "last_seen": last_seen,
-        "services": services,
-
-        # ✅ INCLUDE this so React can display it
-        "grouped_top_level_cves": grouped_top_level_cves
+        "services": services
     }
