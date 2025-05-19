@@ -4,6 +4,13 @@ import time
 # Optional simple cache
 cve_cache = {}
 
+
+import requests
+import time
+
+# Optional simple cache
+cve_cache = {}
+
 def enrich_cve(cve_id):
     if cve_id in cve_cache:
         return cve_cache[cve_id]
@@ -28,9 +35,21 @@ def enrich_cve(cve_id):
                 description = desc.get("value", description)
                 break
 
-        # MITRE doesn't provide CVSS score in CNA container
-        cvss_score = None
-        severity = "UNKNOWN"
+        # Fallback using metrics from the root level if available
+        metrics = data.get("metrics", {})
+        cvss_score = metrics.get("cvss_v2", None)
+
+        if cvss_score is not None:
+            if cvss_score >= 9.0:
+                severity = "CRITICAL"
+            elif cvss_score >= 7.0:
+                severity = "HIGH"
+            elif cvss_score >= 4.0:
+                severity = "MEDIUM"
+            else:
+                severity = "LOW"
+        else:
+            severity = "UNKNOWN"
 
         enriched = {
             "id": cve_id,
@@ -47,6 +66,7 @@ def enrich_cve(cve_id):
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
+
 
 
 def categorize_cves(cve_ids):
