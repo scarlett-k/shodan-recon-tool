@@ -4,19 +4,43 @@ import time
 # Optional simple cache
 cve_cache = {}
 
-
-import requests
-import time
-
-# Optional simple cache
-cve_cache = {}
-
-def enrich_cve(cve_id):
+def enrich_cve(cve_id, shodan_vuln_data=None):
     if cve_id in cve_cache:
         return cve_cache[cve_id]
 
-    url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
+    # Use Shodan CVE data if provided
+    if shodan_vuln_data:
+        description = shodan_vuln_data.get("summary", "No description")
+        cvss_score = shodan_vuln_data.get("cvss")
 
+        # Derive severity from CVSS score
+        if cvss_score is not None:
+            if cvss_score >= 9.0:
+                severity = "CRITICAL"
+            elif cvss_score >= 7.0:
+                severity = "HIGH"
+            elif cvss_score >= 4.0:
+                severity = "MEDIUM"
+            elif cvss_score > 0:
+                severity = "LOW"
+            else:
+                severity = "UNKNOWN"
+        else:
+            severity = "UNKNOWN"
+
+        enriched = {
+            "id": cve_id,
+            "description": description,
+            "cvss": cvss_score,
+            "severity": severity
+        }
+
+        cve_cache[cve_id] = enriched
+        print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
+        return enriched
+
+    # Fallback to MITRE if Shodan didn't provide CVSS
+    url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 404:
@@ -35,21 +59,8 @@ def enrich_cve(cve_id):
                 description = desc.get("value", description)
                 break
 
-        # Fallback using metrics from the root level if available
-        metrics = data.get("metrics", {})
-        cvss_score = metrics.get("cvss_v2", None)
-
-        if cvss_score is not None:
-            if cvss_score >= 9.0:
-                severity = "CRITICAL"
-            elif cvss_score >= 7.0:
-                severity = "HIGH"
-            elif cvss_score >= 4.0:
-                severity = "MEDIUM"
-            else:
-                severity = "LOW"
-        else:
-            severity = "UNKNOWN"
+        cvss_score = None
+        severity = "UNKNOWN"
 
         enriched = {
             "id": cve_id,
@@ -67,9 +78,7 @@ def enrich_cve(cve_id):
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
 
-
-
-def categorize_cves(cve_ids):
+def categorize_cves(cve_ids, shodan_vuln_data={}):
     grouped = {
         "Critical": [],
         "High Severity": [],
@@ -84,7 +93,8 @@ def categorize_cves(cve_ids):
             continue
         seen_ids.add(cve_id)
 
-        enriched = enrich_cve(cve_id)
+        vuln_data = shodan_vuln_data.get(cve_id)
+        enriched = enrich_cve(cve_id, vuln_data)
         if not enriched:
             entry = {
                 "id": cve_id,
@@ -120,7 +130,6 @@ def categorize_cves(cve_ids):
 
     return grouped
 
-
 def analyze_host(host):
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
@@ -139,10 +148,11 @@ def analyze_host(host):
     merged_services = {}
     seen_services = set()
 
-    # ✅ Categorize top-level host-level CVEs
-    raw_top_vulns = host.get("vulns", [])
-    grouped_top_level_cves = categorize_cves(raw_top_vulns)
-    print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
+    raw_top_vulns = host.get("vulns", {})
+    vuln_data = raw_top_vulns if isinstance(raw_top_vulns, dict) else {}
+    cve_ids = list(vuln_data.keys()) if isinstance(vuln_data, dict) else raw_top_vulns
+    grouped_top_level_cves = categorize_cves(cve_ids, vuln_data)
+    print(f"[DEBUG] Top-level host vulns: {cve_ids}")
 
     for item in host.get("data", []):
         product = item.get("product")
@@ -166,12 +176,15 @@ def analyze_host(host):
 
         if isinstance(raw_cves, dict):
             cves = list(raw_cves.keys())
+            vuln_data = raw_cves
         elif isinstance(raw_cves, list):
             cves = raw_cves
+            vuln_data = {}
         else:
             cves = []
+            vuln_data = {}
 
-        grouped_cves = categorize_cves(cves)
+        grouped_cves = categorize_cves(cves, vuln_data)
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
