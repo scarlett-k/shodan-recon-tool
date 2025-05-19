@@ -8,13 +8,13 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
     if cve_id in cve_cache:
         return cve_cache[cve_id]
 
-    # Use Shodan CVE data if provided
+    # ✅ Use Shodan CVE data if provided
     if shodan_vuln_data:
         description = shodan_vuln_data.get("summary", "No description")
         cvss_score = shodan_vuln_data.get("cvss")
 
         # Derive severity from CVSS score
-        if cvss_score is not None:
+        if isinstance(cvss_score, (float, int)):
             if cvss_score >= 9.0:
                 severity = "CRITICAL"
             elif cvss_score >= 7.0:
@@ -36,10 +36,10 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
         }
 
         cve_cache[cve_id] = enriched
-        print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
+        print(f"[INFO] Enriched {cve_id} (Shodan): {severity} | {description[:60]}...")
         return enriched
 
-    # Fallback to MITRE if Shodan didn't provide CVSS
+    # 🔄 Fallback to MITRE if no Shodan data
     url = f"https://cveawg.mitre.org/api/cve/{cve_id}"
     try:
         response = requests.get(url, timeout=10)
@@ -59,6 +59,7 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
                 description = desc.get("value", description)
                 break
 
+        # MITRE usually doesn’t have CVSS in CNA
         cvss_score = None
         severity = "UNKNOWN"
 
@@ -70,13 +71,14 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
         }
 
         cve_cache[cve_id] = enriched
-        print(f"[INFO] Enriched {cve_id}: {severity} | {description[:60]}...")
+        print(f"[INFO] Enriched {cve_id} (MITRE): {severity} | {description[:60]}...")
         time.sleep(1)
         return enriched
 
     except Exception as e:
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
+
 
 def categorize_cves(cve_ids, shodan_vuln_data={}):
     grouped = {
@@ -148,13 +150,12 @@ def analyze_host(host):
     merged_services = {}
     seen_services = set()
 
-    raw_top_vulns = host.get("vulns", {})
-    vuln_data = raw_top_vulns if isinstance(raw_top_vulns, dict) else {}
-    cve_ids = list(vuln_data.keys()) if isinstance(vuln_data, dict) else raw_top_vulns
-    grouped_top_level_cves = categorize_cves(cve_ids, vuln_data)
-    print(f"[DEBUG] Top-level host vulns: {cve_ids}")
+    # ✅ Categorize top-level host-level CVEs
+    raw_top_vulns = host.get("vulns", [])
+    grouped_top_level_cves = categorize_cves(raw_top_vulns)
+    print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
 
-    for item in host.get("data", []):
+    for i, item in enumerate(host.get("data", [])):
         product = item.get("product")
         version = item.get("version")
         port = item.get("port")
@@ -168,23 +169,26 @@ def analyze_host(host):
         seen_services.add(key)
 
         raw_cves = item.get("vulns")
-        print(f"[DEBUG] item vulns for {item.get('ip_str')}: {raw_cves}")
 
+        # ✅ Fallback: if this is the first service and no CVEs are found, use top-level
+        if not raw_cves and i == 0:
+            raw_cves = host.get("vulns", [])
+            print(f"[DEBUG] Using top-level CVEs as fallback for service on port {port}: {raw_cves}")
+
+        # ✅ Final fallback if still nothing
         if not raw_cves:
             raw_cves = host.get("opts", {}).get("vulns", [])
             print(f"[DEBUG] fallback host opts vulns for {host.get('ip_str')}: {raw_cves}")
 
+        # Normalize CVE format
         if isinstance(raw_cves, dict):
             cves = list(raw_cves.keys())
-            vuln_data = raw_cves
         elif isinstance(raw_cves, list):
             cves = raw_cves
-            vuln_data = {}
         else:
             cves = []
-            vuln_data = {}
 
-        grouped_cves = categorize_cves(cves, vuln_data)
+        grouped_cves = categorize_cves(cves)
 
         merge_key = f"{product}::{version}"
         cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
