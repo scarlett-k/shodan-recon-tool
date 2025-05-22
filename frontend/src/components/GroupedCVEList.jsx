@@ -50,8 +50,8 @@ function CVEGroup({ category, entries }) {
           {entries.map((cve, i) => {
             const cveId = extractCVEId(cve.id);
             const linkUrl = cveId
-              ? `https://nvd.nist.gov/vuln/detail/${cveId}`
-              : `https://nvd.nist.gov/vuln/search/results?query=${encodeURIComponent(cve.id)}`;
+              ? `https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId}`
+              : `https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=${encodeURIComponent(cve.id)}`;
 
             return (
               <li key={i} style={{ marginBottom: '1rem', fontSize: '0.9rem', lineHeight: '1.4' }}>
