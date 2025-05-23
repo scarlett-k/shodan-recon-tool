@@ -7,6 +7,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [hasScanned, setHasScanned] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
   const handleScan = async () => {
     const inputFormat = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$|^(\d{1,3}\.){3}\d{1,3}$/;
 
@@ -14,6 +15,7 @@ function App() {
       setErrorMessage('Please enter a valid domain or IP (e.g., example.com or 8.8.8.8)');
       return;
     }
+
     setErrorMessage('');
     setLoading(true);
     setResults(null);
@@ -27,6 +29,7 @@ function App() {
       });
 
       const data = await response.json();
+      console.log("Full scan result:", data.results); // ✅ Debug log
       setResults(data.results);
     } catch (err) {
       console.error('Scan failed:', err);
@@ -59,7 +62,7 @@ function App() {
           Enter a domain or IP (e.g. <code>example.com</code> or <code>8.8.8.8</code>).<br />
           <strong>Do not</strong> include <code>https://</code> or a trailing <code>/</code>.
         </p>
-  
+
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -96,14 +99,14 @@ function App() {
             Scan
           </button>
         </div>
-        {/* 🔴 Error Message */}
+
         {errorMessage && (
           <p style={{ color: '#ff4c4c', marginTop: '0.25rem' }}>{errorMessage}</p>
         )}
         {loading && <p style={{ marginTop: '1rem' }}>🔍 Scanning...</p>}
       </div>
-  
-      {/* Wider Results Output Section */}
+
+      {/* Results Output Section */}
       <div style={{
         width: '100%',
         maxWidth: '1100px',
@@ -113,7 +116,6 @@ function App() {
       </div>
     </div>
   );
-  
 }
 
 export default App;
