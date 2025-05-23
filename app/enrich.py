@@ -79,7 +79,6 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
         print(f"[ERROR] Failed to enrich CVE {cve_id}: {e}")
         return None
 
-
 def flatten_cves(cve_ids, shodan_vuln_data={}):
     seen_ids = set()
     flat_list = []
@@ -113,6 +112,7 @@ def flatten_cves(cve_ids, shodan_vuln_data={}):
         })
 
     return flat_list
+
 def analyze_host(host):
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
@@ -169,7 +169,13 @@ def analyze_host(host):
         })
 
     # Handle top-level CVEs as well
-    top_level_vulns = flatten_cves(host.get("vulns", []))
+    top_vuln_ids = host.get("vulns", [])
+    if isinstance(top_vuln_ids, dict):
+        top_vuln_ids = list(top_vuln_ids.keys())
+    elif not isinstance(top_vuln_ids, list):
+        top_vuln_ids = []
+
+    top_level_vulns = flatten_cves(top_vuln_ids)
 
     return {
         "ip": ip,
