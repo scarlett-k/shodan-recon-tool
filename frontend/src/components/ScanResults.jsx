@@ -13,7 +13,7 @@ function ScanResults({ results, hasScanned }) {
     <div style={{ padding: '1rem' }}>
       <div style={{ background: '#111', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>IP: {results.ip}</h2>
-        <p><strong>Organization:</strong> {results.org}</p>
+        <p><strong>TEST!!!!!!!!!!!!!!!:</strong> {results.org}</p>
         <p><strong>ISP:</strong> {results.isp}</p>
         <p><strong>Domains:</strong> {results.domains.join(', ') || 'None'}</p>
         <p><strong>Hostnames:</strong> {results.hostnames.join(', ') || 'None'}</p>
