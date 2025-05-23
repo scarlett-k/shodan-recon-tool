@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ScanResults from './components/ScanResults';
+import ServiceCard from './components/ServiceCard';
 
 function App() {
   const [domain, setDomain] = useState('');
@@ -29,7 +29,7 @@ function App() {
       });
 
       const data = await response.json();
-      print("Full scan result (from app.js):", data.results); // ✅ Debug log
+      console.log("Full scan result (from app.js):", data.results); // ✅ Corrected debug log
       setResults(data.results);
     } catch (err) {
       console.error('Scan failed:', err);
@@ -112,7 +112,27 @@ function App() {
         maxWidth: '1100px',
         padding: '2rem 1rem',
       }}>
-        <ScanResults result={results} hasScanned={hasScanned} />
+        {results && results.services && results.services.map((service, index) => (
+          <ServiceCard
+            key={index}
+            product={service.product}
+            version={service.version}
+            ports={service.ports}
+            vulnerabilities={service.vulnerabilities}
+          />
+        ))}
+
+        {results && results.top_vulnerabilities && results.top_vulnerabilities.length > 0 && (
+          <div style={{ marginTop: '2rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Top-Level Vulnerabilities</h3>
+            <ServiceCard
+              product="Top-Level Host"
+              version=""
+              ports={results.ports || []}
+              vulnerabilities={results.top_vulnerabilities}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

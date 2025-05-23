@@ -80,16 +80,10 @@ def enrich_cve(cve_id, shodan_vuln_data=None):
         return None
 
 
-def categorize_cves(cve_ids, shodan_vuln_data={}):
-    grouped = {
-        "Critical": [],
-        "High Severity": [],
-        "Known Patterns": [],
-        "Vendor Advisories": [],
-        "Other": []
-    }
-
+def flatten_cves(cve_ids, shodan_vuln_data={}):
     seen_ids = set()
+    flat_list = []
+
     for cve_id in cve_ids:
         if cve_id in seen_ids:
             continue
@@ -98,47 +92,33 @@ def categorize_cves(cve_ids, shodan_vuln_data={}):
         vuln_data = shodan_vuln_data.get(cve_id)
         enriched = enrich_cve(cve_id, vuln_data)
         if not enriched:
-            entry = {
+            flat_list.append({
                 "id": cve_id,
                 "title": "",
                 "description": "No description",
                 "cvss": None,
                 "exploit": False,
                 "references": []
-            }
-            grouped["Other"].append(entry)
+            })
             continue
 
-        entry = {
+        flat_list.append({
             "id": cve_id,
             "title": "",
             "description": enriched["description"],
             "cvss": enriched["cvss"],
+            "severity": enriched["severity"],
             "exploit": False,
             "references": []
-        }
+        })
 
-        severity = enriched["severity"].upper()
-        if severity == "CRITICAL":
-            grouped["Critical"].append(entry)
-        elif severity == "HIGH":
-            grouped["High Severity"].append(entry)
-        elif "null pointer" in enriched["description"].lower() or "improper" in enriched["description"].lower():
-            grouped["Known Patterns"].append(entry)
-        elif any(v in enriched["description"].lower() for v in ["suse", "rhsa", "openvas"]):
-            grouped["Vendor Advisories"].append(entry)
-        else:
-            grouped["Other"].append(entry)
-
-    return grouped
-
+    return flat_list
 def analyze_host(host):
     ip = host.get("ip_str")
     org = host.get("org", "Unknown")
     country = host.get("country_name", "Unknown")
     city = host.get("city", "Unknown")
     isp = host.get("isp", "Unknown")
-    asn = host.get("asn", "Unknown")
     hostnames = host.get("hostnames", [])
     domains = host.get("domains", [])
     os = host.get("os", "Unknown")
@@ -147,13 +127,8 @@ def analyze_host(host):
     last_seen = host.get("last_update", "")
     flagged_ports = [p for p in ports if p in [21, 22, 23, 3389]]
 
-    merged_services = {}
+    services = []
     seen_services = set()
-
-    # ✅ Categorize top-level host-level CVEs
-    raw_top_vulns = host.get("vulns", [])
-    grouped_top_level_cves = categorize_cves(raw_top_vulns)
-    print(f"[DEBUG] Top-level host vulns: {raw_top_vulns}")
 
     for i, item in enumerate(host.get("data", [])):
         product = item.get("product")
@@ -170,17 +145,13 @@ def analyze_host(host):
 
         raw_cves = item.get("vulns")
 
-        # ✅ Fallback: if this is the first service and no CVEs are found, use top-level
         if not raw_cves and i == 0:
             raw_cves = host.get("vulns", [])
             print(f"[DEBUG] Using top-level CVEs as fallback for service on port {port}: {raw_cves}")
 
-        # ✅ Final fallback if still nothing
         if not raw_cves:
             raw_cves = host.get("opts", {}).get("vulns", [])
-            print(f"[DEBUG] fallback host opts vulns for {host.get('ip_str')}: {raw_cves}")
 
-        # Normalize CVE format
         if isinstance(raw_cves, dict):
             cves = list(raw_cves.keys())
         elif isinstance(raw_cves, list):
@@ -188,34 +159,17 @@ def analyze_host(host):
         else:
             cves = []
 
-        grouped_cves = categorize_cves(cves)
+        flat_cves = flatten_cves(cves)
 
-        merge_key = f"{product}::{version}"
-        cve_signature = tuple(sorted((cve["id"] for group in grouped_cves.values() for cve in group)))
-
-        if merge_key in merged_services:
-            if merged_services[merge_key]["cve_signature"] == cve_signature:
-                merged_services[merge_key]["ports"].add(port)
-                continue
-            else:
-                merge_key += f":{port}"
-
-        merged_services[merge_key] = {
+        services.append({
             "product": product,
             "version": version,
-            "ports": {port},
-            "grouped_cves": grouped_cves,
-            "cve_signature": cve_signature
-        }
-
-    services = []
-    for entry in merged_services.values():
-        services.append({
-            "product": entry["product"],
-            "version": entry["version"],
-            "ports": sorted(entry["ports"]),
-            "grouped_cves": entry["grouped_cves"]
+            "ports": [port],
+            "vulnerabilities": flat_cves
         })
+
+    # Handle top-level CVEs as well
+    top_level_vulns = flatten_cves(host.get("vulns", []))
 
     return {
         "ip": ip,
@@ -229,8 +183,7 @@ def analyze_host(host):
         "ports": ports,
         "flagged_ports": flagged_ports,
         "tags": tags,
-        "cves": grouped_top_level_cves,
-        "grouped_top_level_cves": grouped_top_level_cves,
+        "top_vulnerabilities": top_level_vulns,
         "last_seen": last_seen,
         "services": services
     }

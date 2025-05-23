@@ -1,17 +1,15 @@
 import React from 'react';
 import GroupedCVEList from './GroupedCVEList';
 
-function ServiceCard({ product, version, ports, groupedCves }) {
+function ServiceCard({ product, version, ports, cves }) {
   return (
-    <div
-      style={{
-        border: '1px solid #ccc',
-        borderRadius: '8px',
-        padding: '1rem',
-        marginBottom: '1.5rem',
-        backgroundColor: '#f9f9f9'
-      }}
-    >
+    <div style={{
+      border: '1px solid #ccc',
+      borderRadius: '8px',
+      padding: '1rem',
+      marginBottom: '1.5rem',
+      backgroundColor: '#f9f9f9'
+    }}>
       <h3 style={{ marginBottom: '0.25rem' }}>
         {product} {version && `v${version}`}
       </h3>
@@ -19,7 +17,7 @@ function ServiceCard({ product, version, ports, groupedCves }) {
         Ports: {ports.join(', ')}
       </p>
 
-      <GroupedCVEList groupedCves={groupedCves || {}} />
+      <GroupedCVEList cves={cves || []} />
     </div>
   );
 }
