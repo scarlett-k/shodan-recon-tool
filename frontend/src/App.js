@@ -112,7 +112,7 @@ function App() {
         maxWidth: '1100px',
         padding: '2rem 1rem',
       }}>
-        <ScanResults results={results} hasScanned={hasScanned} />
+        <ScanResults result={results} hasScanned={hasScanned} />
       </div>
     </div>
   );
