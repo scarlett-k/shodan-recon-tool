@@ -114,7 +114,7 @@ function normalizeId(id = '') {
 }
 
 function GroupedCVEList({ groupedCves }) {
-  console.log("[DEBUG] Grouped CVEs received:", groupedCves);
+  print("[DEBUG] Grouped CVEs received:", groupedCves);
 
   if (!groupedCves || typeof groupedCves !== 'object') {
     return <p style={{ color: '#999' }}>No CVEs found for this service.</p>;

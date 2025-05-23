@@ -4,7 +4,7 @@ import ServiceCard from './ServiceCard';
 
 function ScanResults({ result }) {
   if (!result) return null;
-  console.log("Full scan result:", result);
+  print("Full scan result:", result);
   return (
     <div style={{ padding: '1rem' }}>
       <div style={{ background: '#111', padding: '1rem', borderRadius: '8px', marginBottom: '2rem' }}>
