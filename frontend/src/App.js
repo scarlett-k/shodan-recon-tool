@@ -29,7 +29,7 @@ function App() {
       });
 
       const data = await response.json();
-      console.log("Full scan result:", data.results); // ✅ Debug log
+      print("Full scan result (from app.js):", data.results); // ✅ Debug log
       setResults(data.results);
     } catch (err) {
       console.error('Scan failed:', err);

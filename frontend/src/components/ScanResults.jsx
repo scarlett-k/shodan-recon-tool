@@ -5,7 +5,7 @@ import ServiceCard from './ServiceCard';
 function ScanResults({ results, hasScanned }) {
   if (!results) return null;
 
-  console.log("Full scan result:", results); // ✅ Debug output
+  print("Full scan result (fromscanresults):", results); // ✅ Debug output
 
   return (
     <div style={{ padding: '1rem' }}>
