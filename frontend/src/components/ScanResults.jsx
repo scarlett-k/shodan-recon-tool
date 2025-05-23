@@ -3,6 +3,8 @@ import GroupedCVEList from './GroupedCVEList';
 import ServiceCard from './ServiceCard';
 
 function ScanResults({ results, hasScanned }) {
+  print("🔍 ScanResults component loaded");
+
   if (!results) return null;
 
   print("Full scan result (fromscanresults):", results); // ✅ Debug output
